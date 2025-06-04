@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Circle Checker">
+    <title>Circle Checker</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            overscroll-behavior: none;
+            touch-action: manipulation;
+        }
+        canvas { touch-action: none; }
+        .touch-none { touch-action: none; }
+        
+        /* PWA対応 */
+        @media (display-mode: standalone) {
+            body { padding-top: env(safe-area-inset-top); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        // 実際のエクセルデータ
+        const EXCEL_DATA = [
+            {"判断円":"親円","タイプ":"ガイディングカテ","名称":"5Fr","最大外径":1.5},
+            {"判断円":"親円","タイプ":"ガイディングカテ","名称":"6Fr","最大外径":1.8},
+            {"判断円":"親円","タイプ":"ガイディングカテ","名称":"7Fr","最大外径":2.06},
+            {"判断円":"親円","タイプ":"ガイディングカテ","名称":"8Fr","最大外径":2.28},
+            {"判断円":"親円","タイプ":"ガイドエクステンション","名称":"EZ Guide　5.5Fr ","最大外径":1.3},
+            {"判断円":"親円","タイプ":"ガイドエクステンション","名称":"EZ Guide　6Fr","最大外径":1.42},
+            {"判断円":"親円","タイプ":"ガイドエクステンション","名称":"GUIDE PLUS 5Fr","最大外径":1.19},
+            {"判断円":"親円","タイプ":"ガイドエクステンション","名称":"GUIDE PLUS ⅡST　６Fr","最大外径":1.33},
+            {"判断円":"親円","タイプ":"ガイドエクステンション","名称":"HIKYAKU","最大外径":1.48},
+            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"Ryurei【1.00-1.50mm】","最大外径":0.89,"シャフト径":0.64},
+            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"Ryurei【2.00-4.00mm】","最大外径":0.87,"シャフト径":0.64},
+            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"ZINRAI【0.75-1.00mm】","最大外径":0.87,"シャフト径":0.65},
+            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"ZINRAI【1.50-2.50mm】","最大外径":0.84,"シャフト径":0.6},
+            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"Regnam【2.00-3.00mm】","最大外径":0.83,"シャフト径":0.7},
+            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"Euphora【1.5-3.00mm】","最大外径":0.84,"シャフト径":0.69},
+            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"MINI TREK【2.00mm】","最大外径":0.76,"シャフト径":0.69},
+            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"TREK【2.50-3.50mm】","最大外径":0.81,"シャフト径":0.69},
+            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"NC Kamui【2.50-3.50mm】","最大外径":0.83,"シャフト径":0.7},
+            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"NC Kamui【3.75-4.50mm】","最大外径":0.87,"シャフト径":0.7},
+            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Powered3 NC【2.50mm】","最大外径":0.81,"シャフト径":0.69,"備考":"適応GC :6Fr  デフレ時、上手く畳まれないと5Frだと抜けない可能性あり"},
+            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Powered3 NC【2.75-3.50mm】","最大外径":0.83,"シャフト径":0.69,"備考":"適応GC :6Fr  デフレ時、上手く畳まれないと5Frだと抜けない可能性あり"},
+            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Powered3 NC【3.75-4.00mm】","最大外径":0.86,"シャフト径":0.69,"備考":"適応GC :6Fr  デフレ時、上手く畳まれないと5Frだと抜けない可能性あり"},
+            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Hiryu Plus【2.00-4.00mm】","最大外径":0.87,"シャフト径":0.64},
+            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Hiryu Plus【4.00-5.00mm】","最大外径":0.87,"シャフト径":0.64,"備考":"適応GC :6Fr  GC/MID(mm): 1.78 "},
+            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Hiryu IB【1.25mm】","最大外径":0.87,"シャフト径":0.64},
+            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"Sequent Please NEO 【2.00-3.50mm】","最大外径":0.83,"シャフト径":0.63,"備考":"※バルーンは5Fr対応だが、drugが剥がれるおそれがあるため、GC/MID(mm):1.65を大きくしている"},
+            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"Aperta NSE【2.00-3.50mm】","最大外径":0.86,"シャフト径":0.68},
+            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"kIZASHI【2.0-3.00mm】","最大外径":0.99,"シャフト径":0.7},
+            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"kIZASHI【3.50-mm】","最大外径":0.99,"シャフト径":0.7,"備考":"適応GC :6Fr  GC/MID(mm): 1.78 "},
+            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"Wolverine【2.00-3.00mm】","最大外径":0.91,"シャフト径":0.59},
+            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Ace HP【2.50-3.00mm】","最大外径":0.8,"シャフト径":0.66},
+            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Ace HP【3.50-4.00mm】","最大外径":0.86,"シャフト径":0.66},
+            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"NC Euphora【2.25-3.50mm】","最大外径":0.89,"シャフト径":0.69},
+            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"Ryusei【2.50-3.50mm】","最大外径":1.13},
+            {"判断円":"子円","タイプ":"ステント","名称":"Xience Skypoint-38mm【2.25-4.0mm】","最大外径":0.93,"シャフト径":0.71},
+            {"判断円":"子円","タイプ":"ステント","名称":"Xience Skypoint-48mm【2.25-4.0mm】","最大外径":0.93,"シャフト径":0.71,"備考":"適応GC :6Fr  GC/MID(mm): 1.78 "},
+            {"判断円":"子円","タイプ":"ステント","名称":"Resolute【2.25-3.5mm】","最大外径":0.91,"シャフト径":0.69},
+            {"判断円":"子円","タイプ":"ステント","名称":"Coroflex ISAR NEO【2.5-3.5mm】","最大外径":0.83,"シャフト径":0.63},
+            {"判断円":"子円","タイプ":"ステント","名称":"Orsiro Mission【2.25-3.0mm】","最大外径":0.89,"シャフト径":0.66},
+            {"判断円":"子円","タイプ":"ステント","名称":"Orsiro Mission【3.50mm】","最大外径":0.96,"シャフト径":0.66},
+            {"判断円":"子円","タイプ":"ステント","名称":"BioFreedom Ultra【2.5-4.0mm】","最大外径":0.86,"シャフト径":0.7},
+            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Caravel MC","最大外径":0.85},
+            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Zizai","最大外径":0.94},
+            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Mogul SP　Thinner","最大外径":0.87},
+            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Mogul SP","最大外径":0.87},
+            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"MITICHIBIKI PLUS","最大外径":0.94},
+            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Fine Cross GT","最大外径":0.87},
+            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"carry Leon UX19","最大外径":0.63},
+            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Corsair Pro","最大外径":0.93},
+            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Corsair Pro XS","最大外径":0.95},
+            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Crusade type R","最大外径":1.06},
+            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"SASUKE","最大外径":1.05},
+            {"判断円":"子円","タイプ":"末梢保護","名称":"PARACHUTE","最大外径":0.36},
+            {"判断円":"子円","タイプ":"末梢保護","名称":"FILTRAPⅡ","最大外径":0.89},
+            {"判断円":"子円","タイプ":"交換用カテーテル","名称":"KUSABI","最大外径":0.68},
+            {"判断円":"子円","タイプ":"交換用カテーテル","名称":"EZ Keeper","最大外径":0.68},
+            {"判断円":"子円","タイプ":"FFRワイヤー","名称":"Comet Ⅱ","最大外径":0.36},
+            {"判断円":"子円","タイプ":"IVUS","名称":"OptiCross","最大外径":1.05},
+            {"判断円":"子円","タイプ":"血栓吸引","名称":"ThrombusterⅡ 6Fr","最大外径":1.3},
+            {"判断円":"子円","タイプ":"血栓吸引","名称":"ThrombusterⅡ 7Fr","最大外径":1.52},
+            {"判断円":"子円","タイプ":"血栓吸引","名称":"ThrombusterⅡ 8Fr","最大外径":1.74},
+            {"判断円":"子円","タイプ":"その他","名称":"Snare Kit","最大外径":1.35},
+            {"判断円":"子円","タイプ":"ガイドワイヤー","名称":"1.4Wire","最大外径":0.36},
+            {"判断円":"子円","タイプ":"ガイドワイヤー","名称":"RG３","最大外径":0.26},
+            {"判断円":"子円","タイプ":"ガイドエクステンション","名称":"EZ Guide　5.5Fr ","最大外径":1.3},
+            {"判断円":"子円","タイプ":"ガイドエクステンション","名称":"EZ Guide　6Fr","最大外径":1.42},
+            {"判断円":"子円","タイプ":"ガイドエクステンション","名称":"GUIDE PLUS 5Fr","最大外径":1.19},
+            {"判断円":"子円","タイプ":"ガイドエクステンション","名称":"GUIDE PLUS ⅡST　６Fr","最大外径":1.33}
+        ];
+
+        const SCALE_FACTOR = 80;
+        const CANVAS_SIZE = 300;
+
+        const CircleChecker = () => {
+            const [activeTab, setActiveTab] = useState('setup');
+            const [database, setDatabase] = useState(EXCEL_DATA);
+            const [parentCircles, setParentCircles] = useState([]);
+            const [childCirclesData, setChildCirclesData] = useState([]);
+            const [selectedParent, setSelectedParent] = useState(null);
+            const [selectedType, setSelectedType] = useState('');
+            const [selectedName, setSelectedName] = useState('');
+            const [selectedPattern, setSelectedPattern] = useState('pattern1');
+            const [childCircles, setChildCircles] = useState([]);
+            const [selectedCircleIndex, setSelectedCircleIndex] = useState(null);
+            const [searchTerm, setSearchTerm] = useState('');
+            const canvasRef = useRef(null);
+
+            const [dragState, setDragState] = useState({
+                isDragging: false,
+                dragIndex: null,
+                startPos: { x: 0, y: 0 }
+            });
+
+            // データベース初期化
+            useEffect(() => {
+                const parents = database.filter(item => item['判断円'] === '親円');
+                const children = database.filter(item => item['判断円'] === '子円');
+                setParentCircles(parents);
+                setChildCirclesData(children);
+                
+                if (parents.length > 0) {
+                    setSelectedParent(parents[0]);
+                }
+            }, [database]);
+
+            // キャンバス初期化
+            useEffect(() => {
+                if (canvasRef.current) {
+                    canvasRef.current.width = CANVAS_SIZE;
+                    canvasRef.current.height = CANVAS_SIZE;
+                }
+            }, []);
+
+            // キャンバス描画
+            useEffect(() => {
+                if (activeTab === 'canvas') {
+                    const timer = setTimeout(() => {
+                        drawCanvas();
+                    }, 100);
+                    return () => clearTimeout(timer);
+                }
+            }, [activeTab]);
+
+            useEffect(() => {
+                drawCanvas();
+            }, [selectedParent, childCircles, selectedCircleIndex]);
+
+            const drawCanvas = () => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                if (canvas.width !== CANVAS_SIZE || canvas.height !== CANVAS_SIZE) {
+                    canvas.width = CANVAS_SIZE;
+                    canvas.height = CANVAS_SIZE;
+                }
+
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // 親円描画
+                if (selectedParent) {
+                    const centerX = CANVAS_SIZE / 2;
+                    const centerY = CANVAS_SIZE / 2;
+                    const radius = Math.min((selectedParent.最大外径 * SCALE_FACTOR) / 2, (CANVAS_SIZE / 2) - 20);
+
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#8E8E93';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // ラベル
+                    ctx.fillStyle = '#1D1D1F';
+                    ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${selectedParent.名称} (${selectedParent.最大外径}mm)`, centerX, centerY - radius - 10);
+                }
+
+                // 子円描画
+                childCircles.forEach((circle, index) => {
+                    const radius = Math.min((circle.activeSize * SCALE_FACTOR) / 2, 40);
+                    
+                    ctx.beginPath();
+                    ctx.arc(circle.x, circle.y, radius, 0, Math.PI * 2);
+
+                    // 重なりチェック
+                    const centerX = CANVAS_SIZE / 2;
+                    const centerY = CANVAS_SIZE / 2;
+                    const parentRadius = selectedParent ? Math.min((selectedParent.最大外径 * SCALE_FACTOR) / 2, (CANVAS_SIZE / 2) - 20) : 0;
+                    const distanceFromCenter = Math.sqrt((circle.x - centerX) ** 2 + (circle.y - centerY) ** 2);
+                    const isOutsideParent = distanceFromCenter + radius > parentRadius;
+
+                    // 他の円との重なりチェック
+                    const hasCircleOverlap = childCircles.some((other, j) => {
+                        if (index === j) return false;
+                        const otherRadius = Math.min((other.activeSize * SCALE_FACTOR) / 2, 40);
+                        const distance = Math.sqrt((circle.x - other.x) ** 2 + (circle.y - other.y) ** 2);
+                        return distance < radius + otherRadius;
+                    });
+
+                    // 色設定
+                    if (isOutsideParent || hasCircleOverlap) {
+                        ctx.fillStyle = 'rgba(255, 59, 48, 0.4)';
+                    } else {
+                        ctx.fillStyle = circle.pattern === 'pattern1' ? 'rgba(0, 122, 255, 0.4)' : 'rgba(52, 199, 89, 0.4)';
+                    }
+
+                    ctx.fill();
+                    
+                    // 選択時の強調
+                    if (index === selectedCircleIndex) {
+                        ctx.strokeStyle = '#FF3B30';
+                        ctx.lineWidth = 3;
+                    } else {
+                        ctx.strokeStyle = '#8E8E93';
+                        ctx.lineWidth = 1;
+                    }
+                    ctx.stroke();
+
+                    // ラベル
+                    if (radius > 15) {
+                        ctx.fillStyle = '#1D1D1F';
+                        ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+                        ctx.textAlign = 'center';
+                        const shortName = circle.名称.split('【')[0].substring(0, 6);
+                        ctx.fillText(shortName, circle.x, circle.y + 3);
+                    }
+                });
+            };
+
+            const getTouchPosition = (e, canvas) => {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                return {
+                    x: (clientX - rect.left) * (canvas.width / rect.width),
+                    y: (clientY - rect.top) * (canvas.height / rect.height)
+                };
+            };
+
+            const findCircleAtPosition = (x, y) => {
+                for (let i = childCircles.length - 1; i >= 0; i--) {
+                    const circle = childCircles[i];
+                    const dx = x - circle.x;
+                    const dy = y - circle.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const radius = Math.min((circle.activeSize * SCALE_FACTOR) / 2, 40);
+                    
+                    if (distance <= radius + 5) {
+                        return i;
+                    }
+                }
+                return null;
+            };
+
+            const handleStart = (e) => {
+                e.preventDefault();
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const pos = getTouchPosition(e, canvas);
+                const circleIndex = findCircleAtPosition(pos.x, pos.y);
+                
+                if (circleIndex !== null) {
+                    setSelectedCircleIndex(circleIndex);
+                    setDragState({
+                        isDragging: false,
+                        dragIndex: circleIndex,
+                        startPos: pos
+                    });
+                } else {
+                    setSelectedCircleIndex(null);
+                }
+            };
+
+            const handleMove = (e) => {
+                e.preventDefault();
+                if (dragState.dragIndex === null) return;
+
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const pos = getTouchPosition(e, canvas);
+                const deltaX = pos.x - dragState.startPos.x;
+                const deltaY = pos.y - dragState.startPos.y;
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+                if (!dragState.isDragging && distance > 5) {
+                    setDragState(prev => ({ ...prev, isDragging: true }));
+                }
+
+                if (dragState.isDragging) {
+                    setChildCircles(prev => prev.map((circle, index) => {
+                        if (index !== dragState.dragIndex) return circle;
+                        
+                        const radius = Math.min((circle.activeSize * SCALE_FACTOR) / 2, 40);
+                        const newX = Math.max(radius, Math.min(CANVAS_SIZE - radius, pos.x));
+                        const newY = Math.max(radius, Math.min(CANVAS_SIZE - radius, pos.y));
+                        
+                        return { ...circle, x: newX, y: newY };
+                    }));
+                }
+            };
+
+            const handleEnd = (e) => {
+                e.preventDefault();
+                setDragState({
+                    isDragging: false,
+                    dragIndex: null,
+                    startPos: { x: 0, y: 0 }
+                });
+            };
+
+            const handleAddCircle = () => {
+                if (!selectedParent || !selectedName) return;
+
+                const selectedCircle = childCirclesData.find(
+                    circle => circle.名称 === selectedName && circle.タイプ === selectedType
+                );
+
+                if (!selectedCircle) return;
+
+                const diameter = selectedPattern === 'pattern1' ? selectedCircle.最大外径 : (selectedCircle.シャフト径 || selectedCircle.最大外径);
+                
+                const newCircle = {
+                    ...selectedCircle,
+                    x: CANVAS_SIZE / 2,
+                    y: CANVAS_SIZE / 2,
+                    pattern: selectedPattern,
+                    activeSize: diameter,
+                    isOverlapping: false
+                };
+                
+                setChildCircles(prev => [...prev, newCircle]);
+                setSelectedCircleIndex(childCircles.length);
+                setActiveTab('canvas');
+            };
+
+            const removeCircle = (index) => {
+                setChildCircles(prev => prev.filter((_, i) => i !== index));
+                if (selectedCircleIndex === index) {
+                    setSelectedCircleIndex(null);
+                } else if (selectedCircleIndex > index) {
+                    setSelectedCircleIndex(prev => prev - 1);
+                }
+            };
+
+            const togglePattern = () => {
+                if (selectedCircleIndex === null) return;
+                
+                setChildCircles(prev => prev.map((circle, index) => {
+                    if (index !== selectedCircleIndex) return circle;
+                    
+                    const newPattern = circle.pattern === 'pattern1' ? 'pattern2' : 'pattern1';
+                    const newActiveSize = newPattern === 'pattern1' ? circle.最大外径 : (circle.シャフト径 || circle.最大外径);
+                    
+                    return {
+                        ...circle,
+                        pattern: newPattern,
+                        activeSize: newActiveSize
+                    };
+                }));
+            };
+
+            const exportData = () => {
+                const dataStr = JSON.stringify(database, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'pci_database.json';
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const importData = (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const jsonData = JSON.parse(e.target.result);
+                            setDatabase(jsonData);
+                            alert('データのインポートが完了しました！');
+                        } catch (error) {
+                            alert('ファイルの読み込みエラー: ' + error.message);
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+
+            const uniqueTypes = [...new Set(childCirclesData.map(circle => circle.タイプ))];
+            const filteredByType = childCirclesData.filter(circle => circle.タイプ === selectedType);
+            const selectedCircle = selectedCircleIndex !== null ? childCircles[selectedCircleIndex] : null;
+
+            // 検索フィルタリング
+            const filteredDatabase = database.filter(item => 
+                item.名称.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                item.タイプ.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    {/* ヘッダー */}
+                    <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+                        <div className="max-w-md mx-auto px-4 py-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <h1 className="text-2xl font-semibold text-gray-900">Circle Checker</h1>
+                                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-sm font-medium">◯</span>
+                                </div>
+                            </div>
+                            
+                            {/* タブ */}
+                            <div className="flex bg-gray-100 rounded-lg p-1">
+                                {[
+                                    { id: 'setup', label: '設定', icon: '⚙️' },
+                                    { id: 'canvas', label: '配置', icon: '🎯' },
+                                    { id: 'list', label: '一覧', icon: '📋' },
+                                    { id: 'database', label: 'DB', icon: '🗄️' }
+                                ].map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`flex-1 py-2 px-2 rounded-md text-xs font-medium transition-all ${
+                                            activeTab === tab.id
+                                                ? 'bg-white text-blue-600 shadow-sm'
+                                                : 'text-gray-600 hover:text-gray-900'
+                                        }`}
+                                    >
+                                        <div className="flex flex-col items-center space-y-1">
+                                            <span>{tab.icon}</span>
+                                            <span>{tab.label}</span>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-md mx-auto px-4 py-6">
+                        {/* 設定タブ */}
+                        {activeTab === 'setup' && (
+                            <div className="space-y-6">
+                                <div className="bg-white rounded-xl p-6 shadow-sm">
+                                    <h2 className="text-lg font-semibold text-gray-900 mb-4">円の設定</h2>
+                                    
+                                    <div className="space-y-4">
+                                        {/* 親円選択 */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">親円</label>
+                                            <select
+                                                value={selectedParent?.名称 || ''}
+                                                onChange={(e) => {
+                                                    const parent = parentCircles.find(p => p.名称 === e.target.value);
+                                                    setSelectedParent(parent);
+                                                }}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            >
+                                                <option value="">選択してください</option>
+                                                {parentCircles.map((circle, index) => (
+                                                    <option key={index} value={circle.名称}>
+                                                        {circle.タイプ} - {circle.名称} ({circle.最大外径}mm)
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* タイプ選択 */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">タイプ</label>
+                                            <select
+                                                value={selectedType}
+                                                onChange={(e) => {
+                                                    setSelectedType(e.target.value);
+                                                    setSelectedName('');
+                                                }}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            >
+                                                <option value="">選択してください</option>
+                                                {uniqueTypes.map((type, index) => (
+                                                    <option key={index} value={type}>{type}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* 名称選択 */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">名称</label>
+                                            <select
+                                                value={selectedName}
+                                                onChange={(e) => setSelectedName(e.target.value)}
+                                                disabled={!selectedType}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                                            >
+                                                <option value="">選択してください</option>
+                                                {filteredByType.map((circle, index) => (
+                                                    <option key={index} value={circle.名称}>
+                                                        {circle.名称}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* 選択された円の詳細情報 */}
+                                        {selectedName && (() => {
+                                            const selectedDetail = filteredByType.find(c => c.名称 === selectedName);
+                                            return (
+                                                <div className="bg-blue-50 rounded-lg p-3">
+                                                    <h4 className="font-medium text-blue-900 mb-2">詳細情報</h4>
+                                                    <div className="text-sm text-blue-800 space-y-1">
+                                                        <p>最大外径: {selectedDetail?.最大外径}mm</p>
+                                                        {selectedDetail?.シャフト径 && (
+                                                            <p>シャフト径: {selectedDetail.シャフト径}mm</p>
+                                                        )}
+                                                        {selectedDetail?.備考 && (
+                                                            <p className="text-xs bg-yellow-100 text-yellow-800 p-2 rounded mt-2">
+                                                                💡 {selectedDetail.備考}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* パターン選択 */}
+                                        {selectedName && (
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">直径パターン</label>
+                                                <div className="flex space-x-3">
+                                                    <label className="flex-1">
+                                                        <input
+                                                            type="radio"
+                                                            name="pattern"
+                                                            value="pattern1"
+                                                            checked={selectedPattern === 'pattern1'}
+                                                            onChange={(e) => setSelectedPattern(e.target.value)}
+                                                            className="sr-only"
+                                                        />
+                                                        <div className={`p-3 border-2 rounded-lg text-center cursor-pointer transition-all ${
+                                                            selectedPattern === 'pattern1'
+                                                                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                                                : 'border-gray-300 text-gray-700 hover:border-gray-400'
+                                                        }`}>
+                                                            <div className="text-lg mb-1">🔵</div>
+                                                            <div className="text-xs font-medium">最大外径</div>
+                                                        </div>
+                                                    </label>
+                                                    <label className="flex-1">
+                                                        <input
+                                                            type="radio"
+                                                            name="pattern"
+                                                            value="pattern2"
+                                                            checked={selectedPattern === 'pattern2'}
+                                                            onChange={(e) => setSelectedPattern(e.target.value)}
+                                                            className="sr-only"
+                                                        />
+                                                        <div className={`p-3 border-2 rounded-lg text-center cursor-pointer transition-all ${
+                                                            selectedPattern === 'pattern2'
+                                                                ? 'border-green-500 bg-green-50 text-green-700'
+                                                                : 'border-gray-300 text-gray-700 hover:border-gray-400'
+                                                        }`}>
+                                                            <div className="text-lg mb-1">🟢</div>
+                                                            <div className="text-xs font-medium">シャフト径</div>
+                                                        </div>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <button
+                                            onClick={handleAddCircle}
+                                            disabled={!selectedParent || !selectedName}
+                                            className="w-full py-3 px-4 bg-blue-500 text-white rounded-lg font-medium disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-blue-600 transition-colors"
+                                        >
+                                            円を追加
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 配置タブ */}
+                        {activeTab === 'canvas' && (
+                            <div className="space-y-6">
+                                <div className="bg-white rounded-xl p-6 shadow-sm">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h2 className="text-lg font-semibold text-gray-900">配置図</h2>
+                                        {childCircles.length > 0 && (
+                                            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
+                                                {childCircles.length}個
+                                            </span>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="flex justify-center mb-4">
+                                        <canvas
+                                            ref={canvasRef}
+                                            onTouchStart={handleStart}
+                                            onTouchMove={handleMove}
+                                            onTouchEnd={handleEnd}
+                                            onMouseDown={handleStart}
+                                            onMouseMove={handleMove}
+                                            onMouseUp={handleEnd}
+                                            onMouseLeave={handleEnd}
+                                            className="border border-gray-200 rounded-lg bg-white cursor-pointer touch-none"
+                                            style={{ maxWidth: '100%', height: 'auto' }}
+                                        />
+                                    </div>
+
+                                    {childCircles.length === 0 && (
+                                        <div className="text-center py-8">
+                                            <div className="text-4xl mb-2">⭕</div>
+                                            <p className="text-gray-500 text-sm mb-2">設定タブで円を追加してください</p>
+                                            <p className="text-gray-400 text-xs">円をタップして選択・ドラッグで移動</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* コントロール */}
+                                {selectedCircle && (
+                                    <div className="bg-white rounded-xl p-6 shadow-sm">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">選択中の円</h3>
+                                        <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                                            <p className="font-medium text-gray-900">{selectedCircle.名称.split('【')[0]}</p>
+                                            <p className="text-sm text-gray-600">
+                                                {selectedCircle.pattern === 'pattern1' ? '最大外径' : 'シャフト径'}: {selectedCircle.activeSize}mm
+                                            </p>
+                                            {selectedCircle.備考 && (
+                                                <p className="text-xs text-yellow-700 bg-yellow-100 p-2 rounded mt-2">
+                                                    💡 {selectedCircle.備考}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div className="flex space-x-3">
+                                            <button 
+                                                onClick={togglePattern} 
+                                                className="flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700 py-3 px-4 rounded-lg font-medium transition-colors"
+                                            >
+                                                パターン切替
+                                            </button>
+                                            <button
+                                                onClick={() => removeCircle(selectedCircleIndex)}
+                                                className="bg-red-500 hover:bg-red-600 text-white py-3 px-4 rounded-lg font-medium transition-colors"
+                                            >
+                                                削除
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* 一覧タブ */}
+                        {activeTab === 'list' && (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg font-semibold text-gray-900">配置済み円一覧</h2>
+                                    {childCircles.length > 0 && (
+                                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
+                                            {childCircles.length}個
+                                        </span>
+                                    )}
+                                </div>
+
+                                {childCircles.length === 0 ? (
+                                    <div className="bg-white rounded-xl p-8 shadow-sm text-center">
+                                        <div className="text-4xl mb-2">📋</div>
+                                        <p className="text-gray-500 mb-4">まだ円が配置されていません</p>
+                                        <button
+                                            onClick={() => setActiveTab('setup')}
+                                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                                        >
+                                            設定タブで追加
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {childCircles.map((circle, index) => (
+                                            <div
+                                                key={index}
+                                                onClick={() => {
+                                                    setSelectedCircleIndex(index);
+                                                    setActiveTab('canvas');
+                                                }}
+                                                className={`bg-white rounded-xl p-4 shadow-sm cursor-pointer transition-all ${
+                                                    index === selectedCircleIndex ? 'ring-2 ring-blue-500' : 'hover:shadow-md'
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex-1">
+                                                        <h3 className="font-medium text-gray-900">{circle.名称.split('【')[0]}</h3>
+                                                        <p className="text-sm text-gray-600">{circle.タイプ}</p>
+                                                        <p className="text-sm text-blue-600">
+                                                            {circle.pattern === 'pattern1' ? '最大外径' : 'シャフト径'}: {circle.activeSize}mm
+                                                        </p>
+                                                        {circle.備考 && (
+                                                            <p className="text-xs text-yellow-700 bg-yellow-100 p-1 rounded mt-1">
+                                                                💡 {circle.備考.substring(0, 30)}...
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center space-x-2">
+                                                        <span className={`w-3 h-3 rounded-full ${
+                                                            circle.pattern === 'pattern1' ? 'bg-blue-500' : 'bg-green-500'
+                                                        }`}></span>
+                                                        {index === selectedCircleIndex && (
+                                                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">選択中</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        
+                                        {childCircles.length > 0 && (
+                                            <button
+                                                onClick={() => {
+                                                    if (confirm(`配置済みの${childCircles.length}個の円をすべて削除しますか？`)) {
+                                                        setChildCircles([]);
+                                                        setSelectedCircleIndex(null);
+                                                    }
+                                                }}
+                                                className="w-full py-2 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                            >
+                                                すべて削除
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* データベースタブ */}
+                        {activeTab === 'database' && (
+                            <div className="space-y-6">
+                                <div className="bg-white rounded-xl p-6 shadow-sm">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h2 className="text-lg font-semibold text-gray-900">データベース管理</h2>
+                                        <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
+                                            {database.length}件
+                                        </span>
+                                    </div>
+
+                                    {/* 検索バー */}
+                                    <div className="mb-4">
+                                        <input
+                                            type="text"
+                                            placeholder="名称やタイプで検索..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    {/* データ管理ボタン */}
+                                    <div className="flex space-x-2 mb-4">
+                                        <button
+                                            onClick={exportData}
+                                            className="flex-1 py-2 px-3 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors"
+                                        >
+                                            📤 エクスポート
+                                        </button>
+                                        <label className="flex-1 py-2 px-3 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors cursor-pointer text-center">
+                                            📥 インポート
+                                            <input
+                                                type="file"
+                                                accept=".json"
+                                                onChange={importData}
+                                                className="hidden"
+                                            />
+                                        </label>
+                                    </div>
+
+                                    {/* データリスト */}
+                                    <div className="max-h-96 overflow-y-auto space-y-2">
+                                        {filteredDatabase.map((item, index) => (
+                                            <div key={index} className="border border-gray-200 rounded-lg p-3">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center space-x-2">
+                                                            <span className={`w-2 h-2 rounded-full ${
+                                                                item.判断円 === '親円' ? 'bg-blue-500' : 'bg-green-500'
+                                                            }`}></span>
+                                                            <span className="font-medium text-sm">{item.名称}</span>
+                                                        </div>
+                                                        <p className="text-xs text-gray-600">{item.タイプ}</p>
+                                                        <p className="text-xs text-gray-500">
+                                                            最大外径: {item.最大外径}mm
+                                                            {item.シャフト径 && ` | シャフト径: ${item.シャフト径}mm`}
+                                                        </p>
+                                                        {item.備考 && (
+                                                            <p className="text-xs text-yellow-700 bg-yellow-100 p-1 rounded mt-1">
+                                                                💡 {item.備考.substring(0, 50)}...
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {filteredDatabase.length === 0 && searchTerm && (
+                                        <div className="text-center py-8">
+                                            <div className="text-2xl mb-2">🔍</div>
+                                            <p className="text-gray-500 text-sm">検索結果が見つかりません</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 統計情報 */}
+                                <div className="bg-white rounded-xl p-6 shadow-sm">
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">データ統計</h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="text-center p-3 bg-blue-50 rounded-lg">
+                                            <div className="text-2xl font-bold text-blue-600">{parentCircles.length}</div>
+                                            <div className="text-sm text-blue-600">親円</div>
+                                        </div>
+                                        <div className="text-center p-3 bg-green-50 rounded-lg">
+                                            <div className="text-2xl font-bold text-green-600">{childCirclesData.length}</div>
+                                            <div className="text-sm text-green-600">子円</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="mt-4">
+                                        <h4 className="font-medium text-gray-700 mb-2">タイプ別統計</h4>
+                                        <div className="space-y-1 text-sm">
+                                            {uniqueTypes.slice(0, 5).map(type => {
+                                                const count = childCirclesData.filter(c => c.タイプ === type).length;
+                                                return (
+                                                    <div key={type} className="flex justify-between">
+                                                        <span className="text-gray-600">{type}</span>
+                                                        <span className="font-medium">{count}件</span>
+                                                    </div>
+                                                );
+                                            })}
+                                            {uniqueTypes.length > 5 && (
+                                                <div className="text-xs text-gray-500 text-center pt-2">
+                                                    他 {uniqueTypes.length - 5} タイプ
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<CircleChecker />, document.getElementById('root'));
+    </script>
+</body>
+</html>
