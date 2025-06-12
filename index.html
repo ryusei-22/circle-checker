@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Circle Checker">
-    <title>Circle Checker</title>
+    <meta name="apple-mobile-web-app-title" content="Circle Checker Pro">
+    <title>Circle Checker Pro</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -24,6 +24,31 @@
         @media (display-mode: standalone) {
             body { padding-top: env(safe-area-inset-top); }
         }
+        
+        /* アニメーション */
+        .warning-pulse {
+            animation: warningPulse 2s infinite;
+        }
+        
+        @keyframes warningPulse {
+            0%, 100% { background-color: rgba(239, 68, 68, 0.1); }
+            50% { background-color: rgba(239, 68, 68, 0.3); }
+        }
+        
+        .danger-outline {
+            border: 3px solid #ef4444;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+        }
+        
+        .warning-outline {
+            border: 3px solid #f59e0b;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+        }
+        
+        .safe-outline {
+            border: 3px solid #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -32,7 +57,7 @@
     <script type="text/babel">
         const { useState, useRef, useEffect } = React;
 
-        // 実際のエクセルデータ
+        // 元のExcelデータをそのまま使用
         const EXCEL_DATA = [
             {"判断円":"親円","タイプ":"ガイディングカテ","名称":"5Fr","最大外径":1.5},
             {"判断円":"親円","タイプ":"ガイディングカテ","名称":"6Fr","最大外径":1.8},
@@ -104,13 +129,20 @@
             {"判断円":"子円","タイプ":"ガイドエクステンション","名称":"GUIDE PLUS ⅡST　６Fr","最大外径":1.33}
         ];
 
-        // iPhone用に最適化されたサイズ設定
-        const SCALE_FACTOR = 140; // 80から140に増加（1.75倍）
-        const CANVAS_SIZE = 380;  // 300から380に増加
-        const MIN_CHILD_RADIUS = 25; // 最小半径を大きく（15から25に）
-        const MAX_CHILD_RADIUS = 65; // 最大半径を大きく（40から65に）
+        // 設定 - 実際のサイズを正確に反映
+        const SCALE_FACTOR = 140;
+        const CANVAS_SIZE = 380;
+        const MIN_CHILD_RADIUS = 5;   // 最小値を大幅に縮小（実際のサイズ優先）
+        const MAX_CHILD_RADIUS = 200; // 最大値を大幅に拡大（実際のサイズ優先）
+        
+        // クリアランス設定
+        const CLEARANCE_SETTINGS = {
+            SAFE: 0.15,     // 安全（緑）
+            WARNING: 0.05,  // 注意（黄）
+            DANGER: 0.0     // 危険（赤）
+        };
 
-        const CircleChecker = () => {
+        const CircleCheckerPro = () => {
             const [activeTab, setActiveTab] = useState('setup');
             const [database, setDatabase] = useState(EXCEL_DATA);
             const [parentCircles, setParentCircles] = useState([]);
@@ -122,6 +154,7 @@
             const [childCircles, setChildCircles] = useState([]);
             const [selectedCircleIndex, setSelectedCircleIndex] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
+            const [showClearanceInfo, setShowClearanceInfo] = useState(true);
             const canvasRef = useRef(null);
 
             const [dragState, setDragState] = useState({
@@ -129,6 +162,42 @@
                 dragIndex: null,
                 startPos: { x: 0, y: 0 }
             });
+
+            // クリアランス計算関数
+            const calculateClearance = (parentDiameter, childDiameter) => {
+                return parentDiameter - childDiameter;
+            };
+
+            // クリアランス状態を判定
+            const getClearanceStatus = (clearance) => {
+                if (clearance >= CLEARANCE_SETTINGS.SAFE) return 'SAFE';
+                if (clearance >= CLEARANCE_SETTINGS.WARNING) return 'WARNING';
+                return 'DANGER';
+            };
+
+            // 適合性をチェック
+            const checkCompatibility = (parentCircle, childCircle, pattern) => {
+                if (!parentCircle || !childCircle) return { status: 'SAFE', clearance: 0, message: '' };
+                
+                const childSize = pattern === 'pattern1' ? childCircle.最大外径 : (childCircle.シャフト径 || childCircle.最大外径);
+                const clearance = calculateClearance(parentCircle.最大外径, childSize);
+                const status = getClearanceStatus(clearance);
+                
+                let message = '';
+                if (status === 'DANGER') {
+                    if (clearance <= 0) {
+                        message = '⚠️ 理論上挿入不可能';
+                    } else {
+                        message = '⚠️ クリアランス不足';
+                    }
+                } else if (status === 'WARNING') {
+                    message = '⚠️ 注意が必要';
+                } else {
+                    message = '✅ 安全';
+                }
+                
+                return { status, clearance, message };
+            };
 
             // データベース初期化
             useEffect(() => {
@@ -185,10 +254,10 @@
                     ctx.beginPath();
                     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
                     ctx.strokeStyle = '#8E8E93';
-                    ctx.lineWidth = 3; // 線を太く
+                    ctx.lineWidth = 3;
                     ctx.stroke();
                     
-                    // ラベル（サイズアップ）
+                    // ラベル
                     ctx.fillStyle = '#1D1D1F';
                     ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
                     ctx.textAlign = 'center';
@@ -197,14 +266,19 @@
 
                 // 子円描画
                 childCircles.forEach((circle, index) => {
-                    const radius = Math.max(
-                        MIN_CHILD_RADIUS,
-                        Math.min((circle.activeSize * SCALE_FACTOR) / 2, MAX_CHILD_RADIUS)
-                    );
+                    // 実際のサイズに基づいて半径を計算（制限を最小限に）
+                    const theoreticalRadius = (circle.activeSize * SCALE_FACTOR) / 2;
+                    const radius = Math.max(MIN_CHILD_RADIUS, Math.min(theoreticalRadius, MAX_CHILD_RADIUS));
+                    
+                    // サイズが制限されている場合の警告
+                    const isSizeAdjusted = theoreticalRadius !== radius;
                     
                     ctx.beginPath();
                     ctx.arc(circle.x, circle.y, radius, 0, Math.PI * 2);
 
+                    // 適合性チェック
+                    const compatibility = checkCompatibility(selectedParent, circle, circle.pattern);
+                    
                     // 重なりチェック
                     const centerX = CANVAS_SIZE / 2;
                     const centerY = CANVAS_SIZE / 2;
@@ -215,46 +289,69 @@
                     // 他の円との重なりチェック
                     const hasCircleOverlap = childCircles.some((other, j) => {
                         if (index === j) return false;
-                        const otherRadius = Math.max(
-                            MIN_CHILD_RADIUS,
-                            Math.min((other.activeSize * SCALE_FACTOR) / 2, MAX_CHILD_RADIUS)
-                        );
+                        const otherTheoreticalRadius = (other.activeSize * SCALE_FACTOR) / 2;
+                        const otherRadius = Math.max(MIN_CHILD_RADIUS, Math.min(otherTheoreticalRadius, MAX_CHILD_RADIUS));
                         const distance = Math.sqrt((circle.x - other.x) ** 2 + (circle.y - other.y) ** 2);
                         return distance < radius + otherRadius;
                     });
 
-                    // 状態を円オブジェクトに保存
-                    circle.isOutsideParent = isOutsideParent;
-                    circle.hasCircleOverlap = hasCircleOverlap;
-
-                    // 色設定
-                    if (isOutsideParent) {
-                        ctx.fillStyle = 'rgba(255, 59, 48, 0.4)'; // 赤：親円外
-                    } else if (hasCircleOverlap) {
-                        ctx.fillStyle = 'rgba(255, 149, 0, 0.4)'; // オレンジ：子円重なり
+                    // 色設定（適合性を優先）
+                    if (isOutsideParent || hasCircleOverlap) {
+                        ctx.fillStyle = 'rgba(255, 59, 48, 0.4)';
+                    } else if (compatibility.status === 'DANGER') {
+                        ctx.fillStyle = 'rgba(255, 59, 48, 0.4)';
+                    } else if (compatibility.status === 'WARNING') {
+                        ctx.fillStyle = 'rgba(245, 158, 11, 0.4)';
                     } else {
                         ctx.fillStyle = circle.pattern === 'pattern1' ? 'rgba(0, 122, 255, 0.4)' : 'rgba(52, 199, 89, 0.4)';
                     }
 
                     ctx.fill();
                     
-                    // 選択時の強調
+                    // 境界線（サイズ調整されている場合は点線）
                     if (index === selectedCircleIndex) {
                         ctx.strokeStyle = '#FF3B30';
-                        ctx.lineWidth = 4; // 選択時は更に太く
+                        ctx.lineWidth = 4;
+                    } else if (compatibility.status === 'DANGER') {
+                        ctx.strokeStyle = '#ef4444';
+                        ctx.lineWidth = 3;
+                    } else if (compatibility.status === 'WARNING') {
+                        ctx.strokeStyle = '#f59e0b';
+                        ctx.lineWidth = 3;
                     } else {
                         ctx.strokeStyle = '#8E8E93';
-                        ctx.lineWidth = 2; // 通常時も太く
+                        ctx.lineWidth = 2;
+                    }
+                    
+                    // サイズ調整されている場合は点線
+                    if (isSizeAdjusted) {
+                        ctx.setLineDash([5, 5]);
+                    } else {
+                        ctx.setLineDash([]);
                     }
                     ctx.stroke();
+                    ctx.setLineDash([]); // リセット
 
-                    // ラベル（サイズアップ）
-                    if (radius > 20) {
+                    // ラベル（より小さな円でも表示）
+                    if (radius > 10) {
                         ctx.fillStyle = '#1D1D1F';
-                        ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+                        ctx.font = `bold ${radius > 30 ? '11' : '9'}px -apple-system, BlinkMacSystemFont, sans-serif`;
                         ctx.textAlign = 'center';
-                        const shortName = circle.名称.split('【')[0].substring(0, 8);
-                        ctx.fillText(shortName, circle.x, circle.y + 3);
+                        const shortName = circle.名称.split('【')[0].substring(0, radius > 30 ? 8 : 6);
+                        ctx.fillText(shortName, circle.x, circle.y + 2);
+                        
+                        // サイズ表示
+                        if (radius > 20) {
+                            ctx.font = `${radius > 30 ? '8' : '7'}px -apple-system, BlinkMacSystemFont, sans-serif`;
+                            ctx.fillText(`${circle.activeSize}mm`, circle.x, circle.y + (radius > 30 ? 12 : 10));
+                        }
+                        
+                        // サイズ調整警告
+                        if (isSizeAdjusted && radius > 25) {
+                            ctx.fillStyle = '#ff6b35';
+                            ctx.font = '8px -apple-system, BlinkMacSystemFont, sans-serif';
+                            ctx.fillText('⚠️調整', circle.x, circle.y - radius + 8);
+                        }
                     }
                 });
             };
@@ -281,7 +378,6 @@
                         Math.min((circle.activeSize * SCALE_FACTOR) / 2, MAX_CHILD_RADIUS)
                     );
                     
-                    // タッチエリアを広げる（+10ピクセル）
                     if (distance <= radius + 10) {
                         return i;
                     }
@@ -321,7 +417,6 @@
                 const deltaY = pos.y - dragState.startPos.y;
                 const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-                // ドラッグ開始の閾値を小さく（よりレスポンシブに）
                 if (!dragState.isDragging && distance > 3) {
                     setDragState(prev => ({ ...prev, isDragging: true }));
                 }
@@ -330,10 +425,8 @@
                     setChildCircles(prev => prev.map((circle, index) => {
                         if (index !== dragState.dragIndex) return circle;
                         
-                        const radius = Math.max(
-                            MIN_CHILD_RADIUS,
-                            Math.min((circle.activeSize * SCALE_FACTOR) / 2, MAX_CHILD_RADIUS)
-                        );
+                        const theoreticalRadius = (circle.activeSize * SCALE_FACTOR) / 2;
+                        const radius = Math.max(MIN_CHILD_RADIUS, Math.min(theoreticalRadius, MAX_CHILD_RADIUS));
                         const newX = Math.max(radius, Math.min(CANVAS_SIZE - radius, pos.x));
                         const newY = Math.max(radius, Math.min(CANVAS_SIZE - radius, pos.y));
                         
@@ -360,6 +453,9 @@
 
                 if (!selectedCircle) return;
 
+                // 適合性チェック
+                const compatibility = checkCompatibility(selectedParent, selectedCircle, selectedPattern);
+                
                 const diameter = selectedPattern === 'pattern1' ? selectedCircle.最大外径 : (selectedCircle.シャフト径 || selectedCircle.最大外径);
                 
                 const newCircle = {
@@ -368,7 +464,7 @@
                     y: CANVAS_SIZE / 2,
                     pattern: selectedPattern,
                     activeSize: diameter,
-                    isOverlapping: false
+                    compatibility: compatibility
                 };
                 
                 setChildCircles(prev => [...prev, newCircle]);
@@ -393,11 +489,13 @@
                     
                     const newPattern = circle.pattern === 'pattern1' ? 'pattern2' : 'pattern1';
                     const newActiveSize = newPattern === 'pattern1' ? circle.最大外径 : (circle.シャフト径 || circle.最大外径);
+                    const newCompatibility = checkCompatibility(selectedParent, circle, newPattern);
                     
                     return {
                         ...circle,
                         pattern: newPattern,
-                        activeSize: newActiveSize
+                        activeSize: newActiveSize,
+                        compatibility: newCompatibility
                     };
                 }));
             };
@@ -430,32 +528,6 @@
                 }
             };
 
-            // 円の状態を判定する関数
-            const getCircleStatus = (circle) => {
-                if (circle.isOutsideParent) {
-                    return { 
-                        status: 'outside', 
-                        color: 'bg-red-100 border-red-200', 
-                        textColor: 'text-red-800',
-                        label: '親円外'
-                    };
-                } else if (circle.hasCircleOverlap) {
-                    return { 
-                        status: 'overlap', 
-                        color: 'bg-orange-100 border-orange-200', 
-                        textColor: 'text-orange-800',
-                        label: '重なり'
-                    };
-                } else {
-                    return { 
-                        status: 'normal', 
-                        color: circle.pattern === 'pattern1' ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200', 
-                        textColor: circle.pattern === 'pattern1' ? 'text-blue-800' : 'text-green-800',
-                        label: '正常'
-                    };
-                }
-            };
-
             const uniqueTypes = [...new Set(childCirclesData.map(circle => circle.タイプ))];
             const filteredByType = childCirclesData.filter(circle => circle.タイプ === selectedType);
             const selectedCircle = selectedCircleIndex !== null ? childCircles[selectedCircleIndex] : null;
@@ -466,13 +538,21 @@
                 item.タイプ.toLowerCase().includes(searchTerm.toLowerCase())
             );
 
+            // 現在選択されている子円の適合性
+            const currentCompatibility = selectedName ? 
+                checkCompatibility(
+                    selectedParent, 
+                    filteredByType.find(c => c.名称 === selectedName),
+                    selectedPattern
+                ) : null;
+
             return (
                 <div className="min-h-screen bg-gray-50">
                     {/* ヘッダー */}
                     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
                         <div className="max-w-md mx-auto px-4 py-4">
                             <div className="flex items-center justify-between mb-4">
-                                <h1 className="text-2xl font-semibold text-gray-900">Circle Checker</h1>
+                                <h1 className="text-2xl font-semibold text-gray-900">Circle Checker Pro</h1>
                                 <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
                                     <span className="text-white text-sm font-medium">◯</span>
                                 </div>
@@ -506,6 +586,33 @@
                     </header>
 
                     <main className="max-w-md mx-auto px-4 py-6">
+                        {/* クリアランス情報表示 */}
+                        {showClearanceInfo && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="font-semibold text-blue-900">📏 表示について</h3>
+                                    <button
+                                        onClick={() => setShowClearanceInfo(false)}
+                                        className="text-blue-600 hover:text-blue-800"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                                <div className="space-y-2 text-sm">
+                                    <div className="bg-green-100 p-2 rounded">
+                                        <p className="font-medium text-green-800">✅ 実際のサイズで表示</p>
+                                        <p className="text-green-700">子円も実際のmm数に基づいてスケーリング</p>
+                                    </div>
+                                    <div className="space-y-1 text-xs">
+                                        <p><span className="inline-block w-3 h-3 bg-green-500 rounded-full mr-2"></span>≥0.15mm：安全</p>
+                                        <p><span className="inline-block w-3 h-3 bg-yellow-500 rounded-full mr-2"></span>0.05-0.15mm：注意</p>
+                                        <p><span className="inline-block w-3 h-3 bg-red-500 rounded-full mr-2"></span>&lt;0.05mm：危険</p>
+                                        <p><span class="inline-block w-3 h-1 border-dashed border-gray-500 mr-2"></span>点線：サイズ調整あり</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* 設定タブ */}
                         {activeTab === 'setup' && (
                             <div className="space-y-6">
@@ -635,12 +742,55 @@
                                             </div>
                                         )}
 
+                                        {/* 適合性チェック結果 */}
+                                        {currentCompatibility && (
+                                            <div className={`rounded-lg p-4 ${
+                                                currentCompatibility.status === 'DANGER' ? 'bg-red-50 border border-red-200' :
+                                                currentCompatibility.status === 'WARNING' ? 'bg-yellow-50 border border-yellow-200' :
+                                                'bg-green-50 border border-green-200'
+                                            }`}>
+                                                <div className="flex items-center space-x-2 mb-2">
+                                                    <span className="text-lg">
+                                                        {currentCompatibility.status === 'DANGER' ? '⚠️' :
+                                                         currentCompatibility.status === 'WARNING' ? '⚠️' : '✅'}
+                                                    </span>
+                                                    <span className={`font-medium ${
+                                                        currentCompatibility.status === 'DANGER' ? 'text-red-800' :
+                                                        currentCompatibility.status === 'WARNING' ? 'text-yellow-800' :
+                                                        'text-green-800'
+                                                    }`}>
+                                                        {currentCompatibility.message}
+                                                    </span>
+                                                </div>
+                                                <p className={`text-sm ${
+                                                    currentCompatibility.status === 'DANGER' ? 'text-red-700' :
+                                                    currentCompatibility.status === 'WARNING' ? 'text-yellow-700' :
+                                                    'text-green-700'
+                                                }`}>
+                                                    クリアランス: {currentCompatibility.clearance.toFixed(2)}mm
+                                                </p>
+                                                {currentCompatibility.status === 'DANGER' && currentCompatibility.clearance <= 0 && (
+                                                    <p className="text-xs text-red-600 mt-2 bg-red-100 p-2 rounded">
+                                                        🚨 このサイズでは物理的に挿入できません。データの確認が必要です。
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+
                                         <button
                                             onClick={handleAddCircle}
                                             disabled={!selectedParent || !selectedName}
-                                            className="w-full py-4 px-4 bg-blue-500 text-white rounded-lg font-medium disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-blue-600 transition-colors text-lg"
+                                            className={`w-full py-4 px-4 rounded-lg font-medium text-lg transition-colors ${
+                                                currentCompatibility?.status === 'DANGER' 
+                                                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                                                    : currentCompatibility?.status === 'WARNING'
+                                                    ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                                                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                                            } disabled:bg-gray-300 disabled:cursor-not-allowed`}
                                         >
-                                            円を追加
+                                            {currentCompatibility?.status === 'DANGER' ? '⚠️ 危険だが追加' :
+                                             currentCompatibility?.status === 'WARNING' ? '⚠️ 注意して追加' :
+                                             '円を追加'}
                                         </button>
                                     </div>
                                 </div>
@@ -680,6 +830,9 @@
                                             <div className="text-4xl mb-2">⭕</div>
                                             <p className="text-gray-500 text-sm mb-2">設定タブで円を追加してください</p>
                                             <p className="text-gray-400 text-xs">円をタップして選択・ドラッグで移動</p>
+                                            <div className="mt-4 p-3 bg-green-50 rounded-lg text-xs text-green-800">
+                                                💡 このバージョンでは子円も実際のサイズで表示されます
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -693,6 +846,21 @@
                                             <p className="text-sm text-gray-600">
                                                 {selectedCircle.pattern === 'pattern1' ? '最大外径' : 'シャフト径'}: {selectedCircle.activeSize}mm
                                             </p>
+                                            
+                                            {/* 適合性表示 */}
+                                            {(() => {
+                                                const compatibility = checkCompatibility(selectedParent, selectedCircle, selectedCircle.pattern);
+                                                return (
+                                                    <div className={`mt-2 p-2 rounded text-xs ${
+                                                        compatibility.status === 'DANGER' ? 'bg-red-100 text-red-800' :
+                                                        compatibility.status === 'WARNING' ? 'bg-yellow-100 text-yellow-800' :
+                                                        'bg-green-100 text-green-800'
+                                                    }`}>
+                                                        {compatibility.message} (クリアランス: {compatibility.clearance.toFixed(2)}mm)
+                                                    </div>
+                                                );
+                                            })()}
+                                            
                                             {selectedCircle.備考 && (
                                                 <p className="text-xs text-yellow-700 bg-yellow-100 p-2 rounded mt-2">
                                                     💡 {selectedCircle.備考}
@@ -745,7 +913,7 @@
                                 ) : (
                                     <div className="space-y-3">
                                         {childCircles.map((circle, index) => {
-                                            const circleStatus = getCircleStatus(circle);
+                                            const compatibility = checkCompatibility(selectedParent, circle, circle.pattern);
                                             return (
                                                 <div
                                                     key={index}
@@ -753,23 +921,25 @@
                                                         setSelectedCircleIndex(index);
                                                         setActiveTab('canvas');
                                                     }}
-                                                    className={`rounded-xl p-4 shadow-sm cursor-pointer transition-all border-2 ${
-                                                        circleStatus.color
-                                                    } ${
-                                                        index === selectedCircleIndex ? 'ring-2 ring-blue-500' : 'hover:shadow-md'
-                                                    }`}
+                                                    className={`bg-white rounded-xl p-4 shadow-sm cursor-pointer transition-all border-l-4 ${
+                                                        compatibility.status === 'DANGER' ? 'border-red-500 bg-red-50' :
+                                                        compatibility.status === 'WARNING' ? 'border-yellow-500 bg-yellow-50' :
+                                                        'border-green-500'
+                                                    } ${index === selectedCircleIndex ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
                                                 >
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex-1">
-                                                            <div className="flex items-center space-x-2 mb-1">
-                                                                <h3 className="font-medium text-gray-900">{circle.名称.split('【')[0]}</h3>
-                                                                <span className={`text-xs font-medium px-2 py-1 rounded-full ${circleStatus.color} ${circleStatus.textColor}`}>
-                                                                    {circleStatus.label}
-                                                                </span>
-                                                            </div>
+                                                            <h3 className="font-medium text-gray-900">{circle.名称.split('【')[0]}</h3>
                                                             <p className="text-sm text-gray-600">{circle.タイプ}</p>
                                                             <p className="text-sm text-blue-600">
                                                                 {circle.pattern === 'pattern1' ? '最大外径' : 'シャフト径'}: {circle.activeSize}mm
+                                                            </p>
+                                                            <p className={`text-xs mt-1 ${
+                                                                compatibility.status === 'DANGER' ? 'text-red-600' :
+                                                                compatibility.status === 'WARNING' ? 'text-yellow-600' :
+                                                                'text-green-600'
+                                                            }`}>
+                                                                {compatibility.message} ({compatibility.clearance.toFixed(2)}mm)
                                                             </p>
                                                             {circle.備考 && (
                                                                 <p className="text-xs text-yellow-700 bg-yellow-100 p-1 rounded mt-1">
@@ -777,10 +947,8 @@
                                                                 </p>
                                                             )}
                                                         </div>
-                                                        <div className="flex flex-col items-center space-y-2">
-                                                            <span className={`w-4 h-4 rounded-full ${
-                                                                circle.isOutsideParent ? 'bg-red-500' :
-                                                                circle.hasCircleOverlap ? 'bg-orange-500' :
+                                                        <div className="flex items-center space-x-2">
+                                                            <span className={`w-3 h-3 rounded-full ${
                                                                 circle.pattern === 'pattern1' ? 'bg-blue-500' : 'bg-green-500'
                                                             }`}></span>
                                                             {index === selectedCircleIndex && (
@@ -791,45 +959,19 @@
                                                 </div>
                                             );
                                         })}
+                                        
                                         {childCircles.length > 0 && (
-                                            <div className="mt-4 space-y-3">
-                                                {/* 状態統計 */}
-                                                <div className="bg-gray-50 rounded-lg p-3">
-                                                    <h4 className="font-medium text-gray-700 mb-2 text-sm">配置状況</h4>
-                                                    <div className="grid grid-cols-3 gap-2 text-xs">
-                                                        <div className="text-center">
-                                                            <div className="text-lg font-bold text-blue-600">
-                                                                {childCircles.filter(c => !c.isOutsideParent && !c.hasCircleOverlap).length}
-                                                            </div>
-                                                            <div className="text-blue-600">正常</div>
-                                                        </div>
-                                                        <div className="text-center">
-                                                            <div className="text-lg font-bold text-orange-600">
-                                                                {childCircles.filter(c => c.hasCircleOverlap).length}
-                                                            </div>
-                                                            <div className="text-orange-600">重なり</div>
-                                                        </div>
-                                                        <div className="text-center">
-                                                            <div className="text-lg font-bold text-red-600">
-                                                                {childCircles.filter(c => c.isOutsideParent).length}
-                                                            </div>
-                                                            <div className="text-red-600">親円外</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <button
-                                                    onClick={() => {
-                                                        if (confirm(`配置済みの${childCircles.length}個の円をすべて削除しますか？`)) {
-                                                            setChildCircles([]);
-                                                            setSelectedCircleIndex(null);
-                                                        }
-                                                    }}
-                                                    className="w-full py-3 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                                                >
-                                                    すべて削除
-                                                </button>
-                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    if (confirm(`配置済みの${childCircles.length}個の円をすべて削除しますか？`)) {
+                                                        setChildCircles([]);
+                                                        setSelectedCircleIndex(null);
+                                                    }
+                                                }}
+                                                className="w-full py-3 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                            >
+                                                すべて削除
+                                            </button>
                                         )}
                                     </div>
                                 )}
@@ -877,32 +1019,63 @@
                                         </label>
                                     </div>
 
+                                    {/* 問題のあるデータ警告 */}
+                                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                                        <h4 className="font-medium text-red-800 mb-2">⚠️ データの問題点</h4>
+                                        <div className="text-sm text-red-700 space-y-1">
+                                            <p>• EZ Guide 5.5Fr (1.3mm) に対し、子円も1.3mmのものが存在</p>
+                                            <p>• ThrombusterⅡ 6Fr: 1.3mm</p>
+                                            <p>• EZ Guide 5.5Fr（子円）: 1.3mm</p>
+                                            <p className="text-xs mt-2 bg-red-100 p-2 rounded">
+                                                理論上、同じサイズでは挿入不可能です。実際の使用では注意が必要です。
+                                            </p>
+                                        </div>
+                                    </div>
+
                                     {/* データリスト */}
                                     <div className="max-h-96 overflow-y-auto space-y-2">
-                                        {filteredDatabase.map((item, index) => (
-                                            <div key={index} className="border border-gray-200 rounded-lg p-3">
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center space-x-2">
-                                                            <span className={`w-2 h-2 rounded-full ${
-                                                                item.判断円 === '親円' ? 'bg-blue-500' : 'bg-green-500'
-                                                            }`}></span>
-                                                            <span className="font-medium text-sm">{item.名称}</span>
-                                                        </div>
-                                                        <p className="text-xs text-gray-600">{item.タイプ}</p>
-                                                        <p className="text-xs text-gray-500">
-                                                            最大外径: {item.最大外径}mm
-                                                            {item.シャフト径 && ` | シャフト径: ${item.シャフト径}mm`}
-                                                        </p>
-                                                        {item.備考 && (
-                                                            <p className="text-xs text-yellow-700 bg-yellow-100 p-1 rounded mt-1">
-                                                                💡 {item.備考.substring(0, 50)}...
+                                        {filteredDatabase.map((item, index) => {
+                                            // 問題のあるデータかチェック
+                                            const isProblematic = (
+                                                (item.名称.includes('EZ Guide') && item.名称.includes('5.5Fr') && item.最大外径 === 1.3) ||
+                                                (item.名称.includes('ThrombusterⅡ 6Fr') && item.最大外径 === 1.3)
+                                            );
+                                            
+                                            return (
+                                                <div key={index} className={`border rounded-lg p-3 ${
+                                                    isProblematic ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                                                }`}>
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center space-x-2">
+                                                                <span className={`w-2 h-2 rounded-full ${
+                                                                    item.判断円 === '親円' ? 'bg-blue-500' : 'bg-green-500'
+                                                                }`}></span>
+                                                                <span className="font-medium text-sm">{item.名称}</span>
+                                                                {isProblematic && (
+                                                                    <span className="text-xs bg-red-200 text-red-800 px-2 py-1 rounded">⚠️</span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-xs text-gray-600">{item.タイプ}</p>
+                                                            <p className="text-xs text-gray-500">
+                                                                最大外径: {item.最大外径}mm
+                                                                {item.シャフト径 && ` | シャフト径: ${item.シャフト径}mm`}
                                                             </p>
-                                                        )}
+                                                            {item.備考 && (
+                                                                <p className="text-xs text-yellow-700 bg-yellow-100 p-1 rounded mt-1">
+                                                                    💡 {item.備考.substring(0, 50)}...
+                                                                </p>
+                                                            )}
+                                                            {isProblematic && (
+                                                                <p className="text-xs text-red-600 bg-red-100 p-1 rounded mt-1">
+                                                                    🚨 同径データ - 挿入不可の可能性
+                                                                </p>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
 
                                     {filteredDatabase.length === 0 && searchTerm && (
@@ -916,7 +1089,7 @@
                                 {/* 統計情報 */}
                                 <div className="bg-white rounded-xl p-6 shadow-sm">
                                     <h3 className="text-lg font-semibold text-gray-900 mb-4">データ統計</h3>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
                                         <div className="text-center p-3 bg-blue-50 rounded-lg">
                                             <div className="text-2xl font-bold text-blue-600">{parentCircles.length}</div>
                                             <div className="text-sm text-blue-600">親円</div>
@@ -924,6 +1097,15 @@
                                         <div className="text-center p-3 bg-green-50 rounded-lg">
                                             <div className="text-2xl font-bold text-green-600">{childCirclesData.length}</div>
                                             <div className="text-sm text-green-600">子円</div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* 問題データの統計 */}
+                                    <div className="bg-red-50 rounded-lg p-3 mb-4">
+                                        <h4 className="font-medium text-red-800 mb-2">問題のあるデータ</h4>
+                                        <div className="text-sm text-red-700">
+                                            <p>• 同径データ: 2件</p>
+                                            <p>• クリアランス0mm: EZ Guide 5.5Fr系</p>
                                         </div>
                                     </div>
                                     
@@ -947,6 +1129,41 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* 解決提案 */}
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+                                    <h3 className="text-lg font-semibold text-yellow-800 mb-4">💡 解決提案</h3>
+                                    <div className="space-y-3 text-sm text-yellow-800">
+                                        <div className="flex items-start space-x-3">
+                                            <span className="text-lg">1️⃣</span>
+                                            <div>
+                                                <p className="font-medium">データ精度の向上</p>
+                                                <p>小数点第2位まで測定し、真の値を記録</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start space-x-3">
+                                            <span className="text-lg">2️⃣</span>
+                                            <div>
+                                                <p className="font-medium">測定条件の明記</p>
+                                                <p>デフレート時、インフレート時など状態を明記</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start space-x-3">
+                                            <span className="text-lg">3️⃣</span>
+                                            <div>
+                                                <p className="font-medium">安全マージンの設定</p>
+                                                <p>最小0.1mmのクリアランスを確保</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start space-x-3">
+                                            <span className="text-lg">4️⃣</span>
+                                            <div>
+                                                <p className="font-medium">メーカー仕様書の確認</p>
+                                                <p>公式の技術仕様書で数値を再確認</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </main>
@@ -954,7 +1171,7 @@
             );
         };
 
-        ReactDOM.render(<CircleChecker />, document.getElementById('root'));
+        ReactDOM.render(<CircleCheckerPro />, document.getElementById('root'));
     </script>
 </body>
 </html>
