@@ -1,357 +1,5 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Circle Checker Pro">
-    <title>Circle Checker Pro</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            overscroll-behavior: none;
-            touch-action: manipulation;
-        }
-        canvas { touch-action: none; }
-        .touch-none { touch-action: none; }
-        
-        /* PWA対応 */
-        @media (display-mode: standalone) {
-            body { padding-top: env(safe-area-inset-top); }
-        }
-        
-        /* アニメーション */
-        .warning-pulse {
-            animation: warningPulse 2s infinite;
-        }
-        
-        @keyframes warningPulse {
-            0%, 100% { background-color: rgba(239, 68, 68, 0.1); }
-            50% { background-color: rgba(239, 68, 68, 0.3); }
-        }
-        
-        .danger-outline {
-            border: 3px solid #ef4444;
-            box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
-        }
-        
-        .warning-outline {
-            border: 3px solid #f59e0b;
-            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
-        }
-        
-        .safe-outline {
-            border: 3px solid #10b981;
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
-        }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useRef, useEffect } = React;
-
-        // 元のExcelデータをそのまま使用
-        const EXCEL_DATA = [
-            {"判断円":"親円","タイプ":"ガイディングカテ","名称":"5Fr","最大外径":1.5},
-            {"判断円":"親円","タイプ":"ガイディングカテ","名称":"6Fr","最大外径":1.8},
-            {"判断円":"親円","タイプ":"ガイディングカテ","名称":"7Fr","最大外径":2.06},
-            {"判断円":"親円","タイプ":"ガイディングカテ","名称":"8Fr","最大外径":2.28},
-            {"判断円":"親円","タイプ":"ガイドエクステンション","名称":"EZ Guide　5.5Fr ","最大外径":1.3},
-            {"判断円":"親円","タイプ":"ガイドエクステンション","名称":"EZ Guide　6Fr","最大外径":1.42},
-            {"判断円":"親円","タイプ":"ガイドエクステンション","名称":"GUIDE PLUS 5Fr","最大外径":1.19},
-            {"判断円":"親円","タイプ":"ガイドエクステンション","名称":"GUIDE PLUS ⅡST　６Fr","最大外径":1.33},
-            {"判断円":"親円","タイプ":"ガイドエクステンション","名称":"HIKYAKU","最大外径":1.48},
-            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"Ryurei【1.00-1.50mm】","最大外径":0.89,"シャフト径":0.64},
-            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"Ryurei【2.00-4.00mm】","最大外径":0.87,"シャフト径":0.64},
-            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"ZINRAI【0.75-1.00mm】","最大外径":0.87,"シャフト径":0.65},
-            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"ZINRAI【1.50-2.50mm】","最大外径":0.84,"シャフト径":0.6},
-            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"Regnam【2.00-3.00mm】","最大外径":0.83,"シャフト径":0.7},
-            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"Euphora【1.5-3.00mm】","最大外径":0.84,"シャフト径":0.69},
-            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"MINI TREK【2.00mm】","最大外径":0.76,"シャフト径":0.69},
-            {"判断円":"子円","タイプ":"バルーン〔SC〕","名称":"TREK【2.50-3.50mm】","最大外径":0.81,"シャフト径":0.69},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"NC Kamui【2.50-3.50mm】","最大外径":0.83,"シャフト径":0.7},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"NC Kamui【3.75-4.50mm】","最大外径":0.87,"シャフト径":0.7},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Powered3 NC【2.50mm】","最大外径":0.81,"シャフト径":0.69,"備考":"適応GC :6Fr  デフレ時、上手く畳まれないと5Frだと抜けない可能性あり"},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Powered3 NC【2.75-3.50mm】","最大外径":0.83,"シャフト径":0.69,"備考":"適応GC :6Fr  デフレ時、上手く畳まれないと5Frだと抜けない可能性あり"},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Powered3 NC【3.75-4.00mm】","最大外径":0.86,"シャフト径":0.69,"備考":"適応GC :6Fr  デフレ時、上手く畳まれないと5Frだと抜けない可能性あり"},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Hiryu Plus【2.00-4.00mm】","最大外径":0.87,"シャフト径":0.64},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Hiryu Plus【4.00-5.00mm】","最大外径":0.87,"シャフト径":0.64,"備考":"適応GC :6Fr  GC/MID(mm): 1.78 "},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Hiryu IB【1.25mm】","最大外径":0.87,"シャフト径":0.64},
-            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"Sequent Please NEO 【2.00-3.50mm】","最大外径":0.83,"シャフト径":0.63,"備考":"※バルーンは5Fr対応だが、drugが剥がれるおそれがあるため、GC/MID(mm):1.65を大きくしている"},
-            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"Aperta NSE【2.00-3.50mm】","最大外径":0.86,"シャフト径":0.68},
-            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"kIZASHI【2.0-3.00mm】","最大外径":0.99,"シャフト径":0.7},
-            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"kIZASHI【3.50-mm】","最大外径":0.99,"シャフト径":0.7,"備考":"適応GC :6Fr  GC/MID(mm): 1.78 "},
-            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"Wolverine【2.00-3.00mm】","最大外径":0.91,"シャフト径":0.59},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Ace HP【2.50-3.00mm】","最大外径":0.8,"シャフト径":0.66},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Ace HP【3.50-4.00mm】","最大外径":0.86,"シャフト径":0.66},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"NC Euphora【2.25-3.50mm】","最大外径":0.89,"シャフト径":0.69},
-            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"Ryusei【2.50-3.50mm】","最大外径":1.13},
-            {"判断円":"子円","タイプ":"ステント","名称":"Xience Skypoint-38mm【2.25-4.0mm】","最大外径":0.93,"シャフト径":0.71},
-            {"判断円":"子円","タイプ":"ステント","名称":"Xience Skypoint-48mm【2.25-4.0mm】","最大外径":0.93,"シャフト径":0.71,"備考":"適応GC :6Fr  GC/MID(mm): 1.78 "},
-            {"判断円":"子円","タイプ":"ステント","名称":"Resolute【2.25-3.5mm】","最大外径":0.91,"シャフト径":0.69},
-            {"判断円":"子円","タイプ":"ステント","名称":"Coroflex ISAR NEO【2.5-3.5mm】","最大外径":0.83,"シャフト径":0.63},
-            {"判断円":"子円","タイプ":"ステント","名称":"Orsiro Mission【2.25-3.0mm】","最大外径":0.89,"シャフト径":0.66},
-            {"判断円":"子円","タイプ":"ステント","名称":"Orsiro Mission【3.50mm】","最大外径":0.96,"シャフト径":0.66},
-            {"判断円":"子円","タイプ":"ステント","名称":"BioFreedom Ultra【2.5-4.0mm】","最大外径":0.86,"シャフト径":0.7},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Caravel MC","最大外径":0.85},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Zizai","最大外径":0.94},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Mogul SP　Thinner","最大外径":0.87},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Mogul SP","最大外径":0.87},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"MITICHIBIKI PLUS","最大外径":0.94},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Fine Cross GT","最大外径":0.87},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"carry Leon UX19","最大外径":0.63},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Corsair Pro","最大外径":0.93},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Corsair Pro XS","最大外径":0.95},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Crusade type R","最大外径":1.06},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"SASUKE","最大外径":1.05},
-            {"判断円":"子円","タイプ":"末梢保護","名称":"PARACHUTE","最大外径":0.36},
-            {"判断円":"子円","タイプ":"末梢保護","名称":"FILTRAPⅡ","最大外径":0.89},
-            {"判断円":"子円","タイプ":"交換用カテーテル","名称":"KUSABI","最大外径":0.68},
-            {"判断円":"子円","タイプ":"交換用カテーテル","名称":"EZ Keeper","最大外径":0.68},
-            {"判断円":"子円","タイプ":"FFRワイヤー","名称":"Comet Ⅱ","最大外径":0.36},
-            {"判断円":"子円","タイプ":"IVUS","名称":"OptiCross","最大外径":1.05},
-            {"判断円":"子円","タイプ":"血栓吸引","名称":"ThrombusterⅡ 6Fr","最大外径":1.3},
-            {"判断円":"子円","タイプ":"血栓吸引","名称":"ThrombusterⅡ 7Fr","最大外径":1.52},
-            {"判断円":"子円","タイプ":"血栓吸引","名称":"ThrombusterⅡ 8Fr","最大外径":1.74},
-            {"判断円":"子円","タイプ":"その他","名称":"Snare Kit","最大外径":1.35},
-            {"判断円":"子円","タイプ":"ガイドワイヤー","名称":"1.4Wire","最大外径":0.36},
-            {"判断円":"子円","タイプ":"ガイドワイヤー","名称":"RG３","最大外径":0.26},
-            {"判断円":"子円","タイプ":"ガイドエクステンション","名称":"EZ Guide　5.5Fr ","最大外径":1.3},
-            {"判断円":"子円","タイプ":"ガイドエクステンション","名称":"EZ Guide　6Fr","最大外径":1.42},
-            {"判断円":"子円","タイプ":"ガイドエクステンション","名称":"GUIDE PLUS 5Fr","最大外径":1.19},
-            {"判断円":"子円","タイプ":"ガイドエクステンション","名称":"GUIDE PLUS ⅡST　６Fr","最大外径":1.33}
-        ];
-
-        // 設定 - 実際のサイズを正確に反映
-        const SCALE_FACTOR = 140;
-        const CANVAS_SIZE = 380;
-        const MIN_CHILD_RADIUS = 5;   // 最小値を大幅に縮小（実際のサイズ優先）
-        const MAX_CHILD_RADIUS = 200; // 最大値を大幅に拡大（実際のサイズ優先）
-        
-        // クリアランス設定
-        const CLEARANCE_SETTINGS = {
-            SAFE: 0.15,     // 安全（緑）
-            WARNING: 0.05,  // 注意（黄）
-            DANGER: 0.0     // 危険（赤）
-        };
-
-        const CircleCheckerPro = () => {
-            const [activeTab, setActiveTab] = useState('setup');
-            const [database, setDatabase] = useState(EXCEL_DATA);
-            const [parentCircles, setParentCircles] = useState([]);
-            const [childCirclesData, setChildCirclesData] = useState([]);
-            const [selectedParent, setSelectedParent] = useState(null);
-            const [selectedType, setSelectedType] = useState('');
-            const [selectedName, setSelectedName] = useState('');
-            const [selectedPattern, setSelectedPattern] = useState('pattern1');
-            const [childCircles, setChildCircles] = useState([]);
-            const [selectedCircleIndex, setSelectedCircleIndex] = useState(null);
-            const [searchTerm, setSearchTerm] = useState('');
-            const [showClearanceInfo, setShowClearanceInfo] = useState(true);
-            const canvasRef = useRef(null);
-
-            const [dragState, setDragState] = useState({
-                isDragging: false,
-                dragIndex: null,
-                startPos: { x: 0, y: 0 }
-            });
-
-            // クリアランス計算関数
-            const calculateClearance = (parentDiameter, childDiameter) => {
-                return parentDiameter - childDiameter;
-            };
-
-            // クリアランス状態を判定
-            const getClearanceStatus = (clearance) => {
-                if (clearance >= CLEARANCE_SETTINGS.SAFE) return 'SAFE';
-                if (clearance >= CLEARANCE_SETTINGS.WARNING) return 'WARNING';
-                return 'DANGER';
-            };
-
-            // 適合性をチェック
-            const checkCompatibility = (parentCircle, childCircle, pattern) => {
-                if (!parentCircle || !childCircle) return { status: 'SAFE', clearance: 0, message: '' };
-                
-                const childSize = pattern === 'pattern1' ? childCircle.最大外径 : (childCircle.シャフト径 || childCircle.最大外径);
-                const clearance = calculateClearance(parentCircle.最大外径, childSize);
-                const status = getClearanceStatus(clearance);
-                
-                let message = '';
-                if (status === 'DANGER') {
-                    if (clearance <= 0) {
-                        message = '⚠️ 理論上挿入不可能';
-                    } else {
-                        message = '⚠️ クリアランス不足';
-                    }
-                } else if (status === 'WARNING') {
-                    message = '⚠️ 注意が必要';
-                } else {
-                    message = '✅ 安全';
-                }
-                
-                return { status, clearance, message };
-            };
-
-            // データベース初期化
-            useEffect(() => {
-                const parents = database.filter(item => item['判断円'] === '親円');
-                const children = database.filter(item => item['判断円'] === '子円');
-                setParentCircles(parents);
-                setChildCirclesData(children);
-                
-                if (parents.length > 0) {
-                    setSelectedParent(parents[0]);
-                }
-            }, [database]);
-
-            // キャンバス初期化
-            useEffect(() => {
-                if (canvasRef.current) {
-                    canvasRef.current.width = CANVAS_SIZE;
-                    canvasRef.current.height = CANVAS_SIZE;
-                }
-            }, []);
-
-            // キャンバス描画
-            useEffect(() => {
-                if (activeTab === 'canvas') {
-                    const timer = setTimeout(() => {
-                        drawCanvas();
-                    }, 100);
-                    return () => clearTimeout(timer);
-                }
-            }, [activeTab]);
-
-            useEffect(() => {
-                drawCanvas();
-            }, [selectedParent, childCircles, selectedCircleIndex]);
-
-            const drawCanvas = () => {
-                const canvas = canvasRef.current;
-                if (!canvas) return;
-
-                if (canvas.width !== CANVAS_SIZE || canvas.height !== CANVAS_SIZE) {
-                    canvas.width = CANVAS_SIZE;
-                    canvas.height = CANVAS_SIZE;
-                }
-
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // 親円描画
-                if (selectedParent) {
-                    const centerX = CANVAS_SIZE / 2;
-                    const centerY = CANVAS_SIZE / 2;
-                    const radius = Math.min((selectedParent.最大外径 * SCALE_FACTOR) / 2, (CANVAS_SIZE / 2) - 30);
-
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-                    ctx.strokeStyle = '#8E8E93';
-                    ctx.lineWidth = 3;
-                    ctx.stroke();
-                    
-                    // ラベル
-                    ctx.fillStyle = '#1D1D1F';
-                    ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`${selectedParent.名称} (${selectedParent.最大外径}mm)`, centerX, centerY - radius - 15);
-                }
-
-                // 子円描画
-                childCircles.forEach((circle, index) => {
-                    // 実際のサイズに基づいて半径を計算（制限を最小限に）
-                    const theoreticalRadius = (circle.activeSize * SCALE_FACTOR) / 2;
-                    const radius = Math.max(MIN_CHILD_RADIUS, Math.min(theoreticalRadius, MAX_CHILD_RADIUS));
-                    
-                    // サイズが制限されている場合の警告
-                    const isSizeAdjusted = theoreticalRadius !== radius;
-                    
-                    ctx.beginPath();
-                    ctx.arc(circle.x, circle.y, radius, 0, Math.PI * 2);
-
-                    // 適合性チェック
-                    const compatibility = checkCompatibility(selectedParent, circle, circle.pattern);
-                    
-                    // 重なりチェック
-                    const centerX = CANVAS_SIZE / 2;
-                    const centerY = CANVAS_SIZE / 2;
-                    const parentRadius = selectedParent ? Math.min((selectedParent.最大外径 * SCALE_FACTOR) / 2, (CANVAS_SIZE / 2) - 30) : 0;
-                    const distanceFromCenter = Math.sqrt((circle.x - centerX) ** 2 + (circle.y - centerY) ** 2);
-                    const isOutsideParent = distanceFromCenter + radius > parentRadius;
-
-                    // 他の円との重なりチェック
-                    const hasCircleOverlap = childCircles.some((other, j) => {
-                        if (index === j) return false;
-                        const otherTheoreticalRadius = (other.activeSize * SCALE_FACTOR) / 2;
-                        const otherRadius = Math.max(MIN_CHILD_RADIUS, Math.min(otherTheoreticalRadius, MAX_CHILD_RADIUS));
-                        const distance = Math.sqrt((circle.x - other.x) ** 2 + (circle.y - other.y) ** 2);
-                        return distance < radius + otherRadius;
-                    });
-
-                    // 色設定（適合性を優先）
-                    if (isOutsideParent || hasCircleOverlap) {
-                        ctx.fillStyle = 'rgba(255, 59, 48, 0.4)';
-                    } else if (compatibility.status === 'DANGER') {
-                        ctx.fillStyle = 'rgba(255, 59, 48, 0.4)';
-                    } else if (compatibility.status === 'WARNING') {
-                        ctx.fillStyle = 'rgba(245, 158, 11, 0.4)';
-                    } else {
-                        ctx.fillStyle = circle.pattern === 'pattern1' ? 'rgba(0, 122, 255, 0.4)' : 'rgba(52, 199, 89, 0.4)';
-                    }
-
-                    ctx.fill();
-                    
-                    // 境界線（サイズ調整されている場合は点線）
-                    if (index === selectedCircleIndex) {
-                        ctx.strokeStyle = '#FF3B30';
-                        ctx.lineWidth = 4;
-                    } else if (compatibility.status === 'DANGER') {
-                        ctx.strokeStyle = '#ef4444';
-                        ctx.lineWidth = 3;
-                    } else if (compatibility.status === 'WARNING') {
-                        ctx.strokeStyle = '#f59e0b';
-                        ctx.lineWidth = 3;
-                    } else {
-                        ctx.strokeStyle = '#8E8E93';
-                        ctx.lineWidth = 2;
-                    }
-                    
-                    // サイズ調整されている場合は点線
-                    if (isSizeAdjusted) {
-                        ctx.setLineDash([5, 5]);
-                    } else {
-                        ctx.setLineDash([]);
-                    }
-                    ctx.stroke();
-                    ctx.setLineDash([]); // リセット
-
-                    // ラベル（より小さな円でも表示）
-                    if (radius > 10) {
-                        ctx.fillStyle = '#1D1D1F';
-                        ctx.font = `bold ${radius > 30 ? '11' : '9'}px -apple-system, BlinkMacSystemFont, sans-serif`;
-                        ctx.textAlign = 'center';
-                        const shortName = circle.名称.split('【')[0].substring(0, radius > 30 ? 8 : 6);
-                        ctx.fillText(shortName, circle.x, circle.y + 2);
-                        
-                        // サイズ表示
-                        if (radius > 20) {
-                            ctx.font = `${radius > 30 ? '8' : '7'}px -apple-system, BlinkMacSystemFont, sans-serif`;
-                            ctx.fillText(`${circle.activeSize}mm`, circle.x, circle.y + (radius > 30 ? 12 : 10));
-                        }
-                        
-                        // サイズ調整警告
-                        if (isSizeAdjusted && radius > 25) {
-                            ctx.fillStyle = '#ff6b35';
-                            ctx.font = '8px -apple-system, BlinkMacSystemFont, sans-serif';
-                            ctx.fillText('⚠️調整', circle.x, circle.y - radius + 8);
-                        }
+                        ctx.fillText(`${circle.activeSize}mm`, circle.x + radius + 3, circle.y + 3);
                     }
                 });
             };
@@ -368,17 +16,18 @@
             };
 
             const findCircleAtPosition = (x, y) => {
+                const scaleFactor = getScaleFactor();
                 for (let i = childCircles.length - 1; i >= 0; i--) {
                     const circle = childCircles[i];
                     const dx = x - circle.x;
                     const dy = y - circle.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     const radius = Math.max(
-                        MIN_CHILD_RADIUS,
-                        Math.min((circle.activeSize * SCALE_FACTOR) / 2, MAX_CHILD_RADIUS)
+                        MIN_VISIBLE_RADIUS,
+                        (circle.activeSize * scaleFactor) / 2
                     );
                     
-                    if (distance <= radius + 10) {
+                    if (distance <= Math.max(radius + 5, 15)) { // 最小クリック範囲を確保
                         return i;
                     }
                 }
@@ -422,11 +71,11 @@
                 }
 
                 if (dragState.isDragging) {
+                    const scaleFactor = getScaleFactor();
                     setChildCircles(prev => prev.map((circle, index) => {
                         if (index !== dragState.dragIndex) return circle;
                         
-                        const theoreticalRadius = (circle.activeSize * SCALE_FACTOR) / 2;
-                        const radius = Math.max(MIN_CHILD_RADIUS, Math.min(theoreticalRadius, MAX_CHILD_RADIUS));
+                        const radius = Math.max(MIN_VISIBLE_RADIUS, (circle.activeSize * scaleFactor) / 2);
                         const newX = Math.max(radius, Math.min(CANVAS_SIZE - radius, pos.x));
                         const newY = Math.max(radius, Math.min(CANVAS_SIZE - radius, pos.y));
                         
@@ -442,6 +91,129 @@
                     dragIndex: null,
                     startPos: { x: 0, y: 0 }
                 });
+            };
+
+            const addNewDevice = () => {
+                // バリデーション
+                if (!newDeviceForm.名称 || !newDeviceForm.タイプ || !newDeviceForm.最大外径) {
+                    alert('名称、タイプ、最大外径は必須項目です。');
+                    return;
+                }
+
+                const maxDiameter = parseFloat(newDeviceForm.最大外径);
+                const shaftDiameter = newDeviceForm.シャフト径 ? parseFloat(newDeviceForm.シャフト径) : undefined;
+
+                if (isNaN(maxDiameter) || maxDiameter <= 0) {
+                    alert('最大外径は正の数値で入力してください。');
+                    return;
+                }
+
+                if (shaftDiameter !== undefined && (isNaN(shaftDiameter) || shaftDiameter <= 0)) {
+                    alert('シャフト径は正の数値で入力してください。');
+                    return;
+                }
+
+                // 新しいデバイスオブジェクトを作成
+                const newDevice = {
+                    判断円: newDeviceForm.判断円,
+                    タイプ: newDeviceForm.タイプ,
+                    名称: newDeviceForm.名称,
+                    最大外径: maxDiameter
+                };
+
+                if (shaftDiameter) {
+                    newDevice.シャフト径 = shaftDiameter;
+                }
+
+                if (newDeviceForm.備考) {
+                    newDevice.備考 = newDeviceForm.備考;
+                }
+
+                // データベースに追加
+                setDatabase(prev => [...prev, newDevice]);
+
+                // フォームをリセット
+                setNewDeviceForm({
+                    判断円: '子円',
+                    タイプ: '',
+                    名称: '',
+                    最大外径: '',
+                    シャフト径: '',
+                    備考: ''
+                });
+
+                setShowAddForm(false);
+                alert(`✅ 「${newDevice.名称}」をデータベースに追加しました！`);
+            };
+
+            const startEdit = (index, item) => {
+                setEditingIndex(index);
+                setEditForm({
+                    判断円: item.判断円,
+                    タイプ: item.タイプ,
+                    名称: item.名称,
+                    最大外径: item.最大外径.toString(),
+                    シャフト径: item.シャフト径 ? item.シャフト径.toString() : '',
+                    備考: item.備考 || ''
+                });
+            };
+
+            const saveEdit = (originalIndex) => {
+                // バリデーション
+                if (!editForm.名称 || !editForm.タイプ || !editForm.最大外径) {
+                    alert('名称、タイプ、最大外径は必須項目です。');
+                    return;
+                }
+
+                const maxDiameter = parseFloat(editForm.最大外径);
+                const shaftDiameter = editForm.シャフト径 ? parseFloat(editForm.シャフト径) : undefined;
+
+                if (isNaN(maxDiameter) || maxDiameter <= 0) {
+                    alert('最大外径は正の数値で入力してください。');
+                    return;
+                }
+
+                if (shaftDiameter !== undefined && (isNaN(shaftDiameter) || shaftDiameter <= 0)) {
+                    alert('シャフト径は正の数値で入力してください。');
+                    return;
+                }
+
+                // 編集されたデバイスオブジェクトを作成
+                const updatedDevice = {
+                    判断円: editForm.判断円,
+                    タイプ: editForm.タイプ,
+                    名称: editForm.名称,
+                    最大外径: maxDiameter
+                };
+
+                if (shaftDiameter) {
+                    updatedDevice.シャフト径 = shaftDiameter;
+                }
+
+                if (editForm.備考) {
+                    updatedDevice.備考 = editForm.備考;
+                }
+
+                // データベースを更新
+                setDatabase(prev => prev.map((item, index) => 
+                    index === originalIndex ? updatedDevice : item
+                ));
+
+                setEditingIndex(null);
+                setEditForm({});
+                alert(`✅ 「${updatedDevice.名称}」を更新しました！`);
+            };
+
+            const cancelEdit = () => {
+                setEditingIndex(null);
+                setEditForm({});
+            };
+
+            const deleteDevice = (index, item) => {
+                if (confirm(`「${item.名称}」を削除しますか？`)) {
+                    setDatabase(prev => prev.filter((_, i) => i !== index));
+                    alert(`✅ 「${item.名称}」を削除しました。`);
+                }
             };
 
             const handleAddCircle = () => {
@@ -538,14 +310,6 @@
                 item.タイプ.toLowerCase().includes(searchTerm.toLowerCase())
             );
 
-            // 現在選択されている子円の適合性
-            const currentCompatibility = selectedName ? 
-                checkCompatibility(
-                    selectedParent, 
-                    filteredByType.find(c => c.名称 === selectedName),
-                    selectedPattern
-                ) : null;
-
             return (
                 <div className="min-h-screen bg-gray-50">
                     {/* ヘッダー */}
@@ -553,8 +317,8 @@
                         <div className="max-w-md mx-auto px-4 py-4">
                             <div className="flex items-center justify-between mb-4">
                                 <h1 className="text-2xl font-semibold text-gray-900">Circle Checker Pro</h1>
-                                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-sm font-medium">◯</span>
+                                <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">
+                                    手動配置版
                                 </div>
                             </div>
                             
@@ -586,32 +350,6 @@
                     </header>
 
                     <main className="max-w-md mx-auto px-4 py-6">
-                        {/* クリアランス情報表示 */}
-                        {showClearanceInfo && (
-                            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-                                <div className="flex items-center justify-between mb-3">
-                                    <h3 className="font-semibold text-blue-900">📏 表示について</h3>
-                                    <button
-                                        onClick={() => setShowClearanceInfo(false)}
-                                        className="text-blue-600 hover:text-blue-800"
-                                    >
-                                        ✕
-                                    </button>
-                                </div>
-                                <div className="space-y-2 text-sm">
-                                    <div className="bg-green-100 p-2 rounded">
-                                        <p className="font-medium text-green-800">✅ 実際のサイズで表示</p>
-                                        <p className="text-green-700">子円も実際のmm数に基づいてスケーリング</p>
-                                    </div>
-                                    <div className="space-y-1 text-xs">
-                                        <p><span className="inline-block w-3 h-3 bg-green-500 rounded-full mr-2"></span>≥0.15mm：安全</p>
-                                        <p><span className="inline-block w-3 h-3 bg-yellow-500 rounded-full mr-2"></span>0.05-0.15mm：注意</p>
-                                        <p><span className="inline-block w-3 h-3 bg-red-500 rounded-full mr-2"></span>&lt;0.05mm：危険</p>
-                                        <p><span class="inline-block w-3 h-1 border-dashed border-gray-500 mr-2"></span>点線：サイズ調整あり</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
 
                         {/* 設定タブ */}
                         {activeTab === 'setup' && (
@@ -670,7 +408,7 @@
                                                 <option value="">選択してください</option>
                                                 {filteredByType.map((circle, index) => (
                                                     <option key={index} value={circle.名称}>
-                                                        {circle.名称}
+                                                        {circle.名称} ({circle.最大外径}mm)
                                                     </option>
                                                 ))}
                                             </select>
@@ -683,9 +421,9 @@
                                                 <div className="bg-blue-50 rounded-lg p-4">
                                                     <h4 className="font-medium text-blue-900 mb-2">詳細情報</h4>
                                                     <div className="text-sm text-blue-800 space-y-1">
-                                                        <p>最大外径: {selectedDetail?.最大外径}mm</p>
+                                                        <p><strong>最大外径:</strong> {selectedDetail?.最大外径}mm</p>
                                                         {selectedDetail?.シャフト径 && (
-                                                            <p>シャフト径: {selectedDetail.シャフト径}mm</p>
+                                                            <p><strong>シャフト径:</strong> {selectedDetail.シャフト径}mm</p>
                                                         )}
                                                         {selectedDetail?.備考 && (
                                                             <p className="text-xs bg-yellow-100 text-yellow-800 p-2 rounded mt-2">
@@ -718,6 +456,9 @@
                                                         }`}>
                                                             <div className="text-xl mb-2">🔵</div>
                                                             <div className="text-sm font-medium">最大外径</div>
+                                                            <div className="text-xs text-gray-600">
+                                                                {filteredByType.find(c => c.名称 === selectedName)?.最大外径}mm
+                                                            </div>
                                                         </div>
                                                     </label>
                                                     <label className="flex-1">
@@ -736,61 +477,21 @@
                                                         }`}>
                                                             <div className="text-xl mb-2">🟢</div>
                                                             <div className="text-sm font-medium">シャフト径</div>
+                                                            <div className="text-xs text-gray-600">
+                                                                {filteredByType.find(c => c.名称 === selectedName)?.シャフト径 || 'N/A'}mm
+                                                            </div>
                                                         </div>
                                                     </label>
                                                 </div>
                                             </div>
                                         )}
 
-                                        {/* 適合性チェック結果 */}
-                                        {currentCompatibility && (
-                                            <div className={`rounded-lg p-4 ${
-                                                currentCompatibility.status === 'DANGER' ? 'bg-red-50 border border-red-200' :
-                                                currentCompatibility.status === 'WARNING' ? 'bg-yellow-50 border border-yellow-200' :
-                                                'bg-green-50 border border-green-200'
-                                            }`}>
-                                                <div className="flex items-center space-x-2 mb-2">
-                                                    <span className="text-lg">
-                                                        {currentCompatibility.status === 'DANGER' ? '⚠️' :
-                                                         currentCompatibility.status === 'WARNING' ? '⚠️' : '✅'}
-                                                    </span>
-                                                    <span className={`font-medium ${
-                                                        currentCompatibility.status === 'DANGER' ? 'text-red-800' :
-                                                        currentCompatibility.status === 'WARNING' ? 'text-yellow-800' :
-                                                        'text-green-800'
-                                                    }`}>
-                                                        {currentCompatibility.message}
-                                                    </span>
-                                                </div>
-                                                <p className={`text-sm ${
-                                                    currentCompatibility.status === 'DANGER' ? 'text-red-700' :
-                                                    currentCompatibility.status === 'WARNING' ? 'text-yellow-700' :
-                                                    'text-green-700'
-                                                }`}>
-                                                    クリアランス: {currentCompatibility.clearance.toFixed(2)}mm
-                                                </p>
-                                                {currentCompatibility.status === 'DANGER' && currentCompatibility.clearance <= 0 && (
-                                                    <p className="text-xs text-red-600 mt-2 bg-red-100 p-2 rounded">
-                                                        🚨 このサイズでは物理的に挿入できません。データの確認が必要です。
-                                                    </p>
-                                                )}
-                                            </div>
-                                        )}
-
                                         <button
                                             onClick={handleAddCircle}
                                             disabled={!selectedParent || !selectedName}
-                                            className={`w-full py-4 px-4 rounded-lg font-medium text-lg transition-colors ${
-                                                currentCompatibility?.status === 'DANGER' 
-                                                    ? 'bg-red-500 hover:bg-red-600 text-white'
-                                                    : currentCompatibility?.status === 'WARNING'
-                                                    ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                                                    : 'bg-blue-500 hover:bg-blue-600 text-white'
-                                            } disabled:bg-gray-300 disabled:cursor-not-allowed`}
+                                            className="w-full py-4 px-4 rounded-lg font-medium text-lg transition-colors bg-blue-500 hover:bg-blue-600 text-white disabled:bg-gray-300 disabled:cursor-not-allowed"
                                         >
-                                            {currentCompatibility?.status === 'DANGER' ? '⚠️ 危険だが追加' :
-                                             currentCompatibility?.status === 'WARNING' ? '⚠️ 注意して追加' :
-                                             '円を追加'}
+                                            円を追加
                                         </button>
                                     </div>
                                 </div>
@@ -810,7 +511,12 @@
                                         )}
                                     </div>
                                     
-                                    <div className="flex justify-center mb-4">
+                                    <div className="flex justify-center mb-4 relative">
+                                        {/* 正確表示インジケーター */}
+                                        <div className="accurate-indicator">
+                                            📏 正確サイズ
+                                        </div>
+
                                         <canvas
                                             ref={canvasRef}
                                             onTouchStart={handleStart}
@@ -830,11 +536,12 @@
                                             <div className="text-4xl mb-2">⭕</div>
                                             <p className="text-gray-500 text-sm mb-2">設定タブで円を追加してください</p>
                                             <p className="text-gray-400 text-xs">円をタップして選択・ドラッグで移動</p>
-                                            <div className="mt-4 p-3 bg-green-50 rounded-lg text-xs text-green-800">
-                                                💡 このバージョンでは子円も実際のサイズで表示されます
+                                            <div className="mt-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-800">
+                                                🎯 手動で円を配置して重なりを確認できます
                                             </div>
                                         </div>
                                     )}
+                                    
                                 </div>
 
                                 {/* コントロール */}
@@ -847,16 +554,34 @@
                                                 {selectedCircle.pattern === 'pattern1' ? '最大外径' : 'シャフト径'}: {selectedCircle.activeSize}mm
                                             </p>
                                             
-                                            {/* 適合性表示 */}
+                                            {/* 適合性表示（リアルタイム重なり検出） */}
                                             {(() => {
-                                                const compatibility = checkCompatibility(selectedParent, selectedCircle, selectedCircle.pattern);
+                                                const circlesWithOverlapInfo = detectOverlaps(childCircles);
+                                                const currentCircleInfo = circlesWithOverlapInfo[selectedCircleIndex];
+                                                
+                                                if (!currentCircleInfo) return null;
+
+                                                let statusMessage, statusColor;
+                                                if (currentCircleInfo.isOutsideParent) {
+                                                    statusMessage = '⚠️ 親円からはみ出し';
+                                                    statusColor = 'bg-red-100 text-red-800';
+                                                } else if (currentCircleInfo.hasCircleOverlap) {
+                                                    statusMessage = '⚠️ 子円同士が重なり';
+                                                    statusColor = 'bg-orange-100 text-orange-800';
+                                                } else if (currentCircleInfo.compatibility.status === 'DANGER') {
+                                                    statusMessage = '⚠️ 適合性危険';
+                                                    statusColor = 'bg-red-100 text-red-800';
+                                                } else if (currentCircleInfo.compatibility.status === 'WARNING') {
+                                                    statusMessage = '⚠️ 適合性注意';
+                                                    statusColor = 'bg-yellow-100 text-yellow-800';
+                                                } else {
+                                                    statusMessage = '✅ 正常';
+                                                    statusColor = 'bg-green-100 text-green-800';
+                                                }
+
                                                 return (
-                                                    <div className={`mt-2 p-2 rounded text-xs ${
-                                                        compatibility.status === 'DANGER' ? 'bg-red-100 text-red-800' :
-                                                        compatibility.status === 'WARNING' ? 'bg-yellow-100 text-yellow-800' :
-                                                        'bg-green-100 text-green-800'
-                                                    }`}>
-                                                        {compatibility.message} (クリアランス: {compatibility.clearance.toFixed(2)}mm)
+                                                    <div className={`mt-2 p-2 rounded text-xs ${statusColor}`}>
+                                                        {statusMessage}
                                                     </div>
                                                 );
                                             })()}
@@ -912,53 +637,77 @@
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
-                                        {childCircles.map((circle, index) => {
-                                            const compatibility = checkCompatibility(selectedParent, circle, circle.pattern);
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    onClick={() => {
-                                                        setSelectedCircleIndex(index);
-                                                        setActiveTab('canvas');
-                                                    }}
-                                                    className={`bg-white rounded-xl p-4 shadow-sm cursor-pointer transition-all border-l-4 ${
-                                                        compatibility.status === 'DANGER' ? 'border-red-500 bg-red-50' :
-                                                        compatibility.status === 'WARNING' ? 'border-yellow-500 bg-yellow-50' :
-                                                        'border-green-500'
-                                                    } ${index === selectedCircleIndex ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex-1">
-                                                            <h3 className="font-medium text-gray-900">{circle.名称.split('【')[0]}</h3>
-                                                            <p className="text-sm text-gray-600">{circle.タイプ}</p>
-                                                            <p className="text-sm text-blue-600">
-                                                                {circle.pattern === 'pattern1' ? '最大外径' : 'シャフト径'}: {circle.activeSize}mm
-                                                            </p>
-                                                            <p className={`text-xs mt-1 ${
-                                                                compatibility.status === 'DANGER' ? 'text-red-600' :
-                                                                compatibility.status === 'WARNING' ? 'text-yellow-600' :
-                                                                'text-green-600'
-                                                            }`}>
-                                                                {compatibility.message} ({compatibility.clearance.toFixed(2)}mm)
-                                                            </p>
-                                                            {circle.備考 && (
-                                                                <p className="text-xs text-yellow-700 bg-yellow-100 p-1 rounded mt-1">
-                                                                    💡 {circle.備考.substring(0, 30)}...
+                                        {(() => {
+                                            const circlesWithOverlapInfo = detectOverlaps(childCircles);
+                                            
+                                            return circlesWithOverlapInfo.map((circle, index) => {
+                                                // 状態に応じた色とメッセージ
+                                                let borderColor, bgColor, statusMessage;
+                                                if (circle.isOutsideParent) {
+                                                    borderColor = 'border-red-600';
+                                                    bgColor = 'bg-red-100';
+                                                    statusMessage = '⚠️ 親円からはみ出し';
+                                                } else if (circle.hasCircleOverlap) {
+                                                    borderColor = 'border-orange-400';
+                                                    bgColor = 'bg-orange-100';
+                                                    statusMessage = '⚠️ 子円同士が重なり';
+                                                } else if (circle.compatibility.status === 'DANGER') {
+                                                    borderColor = 'border-red-500';
+                                                    bgColor = 'bg-red-50';
+                                                    statusMessage = '⚠️ 適合性危険';
+                                                } else if (circle.compatibility.status === 'WARNING') {
+                                                    borderColor = 'border-yellow-500';
+                                                    bgColor = 'bg-yellow-50';
+                                                    statusMessage = '⚠️ 適合性注意';
+                                                } else {
+                                                    borderColor = 'border-green-500';
+                                                    bgColor = '';
+                                                    statusMessage = '✅ 正常';
+                                                }
+
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        onClick={() => {
+                                                            setSelectedCircleIndex(index);
+                                                            setActiveTab('canvas');
+                                                        }}
+                                                        className={`bg-white rounded-xl p-4 shadow-sm cursor-pointer transition-all border-l-4 ${borderColor} ${bgColor} ${index === selectedCircleIndex ? 'ring-2 ring-blue-500' : 'hover:shadow-md'}`}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex-1">
+                                                                <h3 className="font-medium text-gray-900">{circle.名称.split('【')[0]}</h3>
+                                                                <p className="text-sm text-gray-600">{circle.タイプ}</p>
+                                                                <p className="text-sm text-blue-600">
+                                                                    {circle.pattern === 'pattern1' ? '最大外径' : 'シャフト径'}: {circle.activeSize}mm
                                                                 </p>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex items-center space-x-2">
-                                                            <span className={`w-3 h-3 rounded-full ${
-                                                                circle.pattern === 'pattern1' ? 'bg-blue-500' : 'bg-green-500'
-                                                            }`}></span>
-                                                            {index === selectedCircleIndex && (
-                                                                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">選択中</span>
-                                                            )}
+                                                                <p className={`text-xs mt-1 font-medium ${
+                                                                    circle.isOutsideParent || circle.hasCircleOverlap ? 'text-red-600' :
+                                                                    circle.compatibility.status === 'DANGER' ? 'text-red-600' :
+                                                                    circle.compatibility.status === 'WARNING' ? 'text-yellow-600' :
+                                                                    'text-green-600'
+                                                                }`}>
+                                                                    {statusMessage}
+                                                                </p>
+                                                                {circle.備考 && (
+                                                                    <p className="text-xs text-yellow-700 bg-yellow-100 p-1 rounded mt-1">
+                                                                        💡 {circle.備考.substring(0, 30)}...
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center space-x-2">
+                                                                <span className={`w-3 h-3 rounded-full ${
+                                                                    circle.pattern === 'pattern1' ? 'bg-blue-500' : 'bg-green-500'
+                                                                }`}></span>
+                                                                {index === selectedCircleIndex && (
+                                                                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">選択中</span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            });
+                                        })()}
                                         
                                         {childCircles.length > 0 && (
                                             <button
@@ -980,35 +729,38 @@
 
                         {/* データベースタブ */}
                         {activeTab === 'database' && (
-                            <div className="space-y-6">
-                                <div className="bg-white rounded-xl p-6 shadow-sm">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h2 className="text-lg font-semibold text-gray-900">データベース管理</h2>
-                                        <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
-                                            {database.length}件
-                                        </span>
-                                    </div>
+                            <div className="bg-white rounded-xl p-6 shadow-sm">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-lg font-semibold text-gray-900">データベース管理</h2>
+                                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
+                                        {database.length}件
+                                    </span>
+                                </div>
 
-                                    {/* 検索バー */}
-                                    <div className="mb-4">
-                                        <input
-                                            type="text"
-                                            placeholder="名称やタイプで検索..."
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                            className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
-                                        />
-                                    </div>
-
-                                    {/* データ管理ボタン */}
-                                    <div className="flex space-x-2 mb-4">
+                                {/* 検索・管理ボタン */}
+                                <div className="mb-4">
+                                    <input
+                                        type="text"
+                                        placeholder="名称やタイプで検索..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base mb-3"
+                                    />
+                                    
+                                    <div className="flex space-x-2">
+                                        <button
+                                            onClick={() => setShowAddForm(true)}
+                                            className="flex-1 py-2 px-3 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
+                                        >
+                                            ➕ 新規追加
+                                        </button>
                                         <button
                                             onClick={exportData}
-                                            className="flex-1 py-3 px-3 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors"
+                                            className="flex-1 py-2 px-3 bg-green-500 text-white rounded-lg text-sm hover:bg-green-600 transition-colors"
                                         >
                                             📤 エクスポート
                                         </button>
-                                        <label className="flex-1 py-3 px-3 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors cursor-pointer text-center">
+                                        <label className="flex-1 py-2 px-3 bg-purple-500 text-white rounded-lg text-sm hover:bg-purple-600 transition-colors cursor-pointer text-center">
                                             📥 インポート
                                             <input
                                                 type="file"
@@ -1018,152 +770,274 @@
                                             />
                                         </label>
                                     </div>
+                                </div>
 
-                                    {/* 問題のあるデータ警告 */}
-                                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                                        <h4 className="font-medium text-red-800 mb-2">⚠️ データの問題点</h4>
-                                        <div className="text-sm text-red-700 space-y-1">
-                                            <p>• EZ Guide 5.5Fr (1.3mm) に対し、子円も1.3mmのものが存在</p>
-                                            <p>• ThrombusterⅡ 6Fr: 1.3mm</p>
-                                            <p>• EZ Guide 5.5Fr（子円）: 1.3mm</p>
-                                            <p className="text-xs mt-2 bg-red-100 p-2 rounded">
-                                                理論上、同じサイズでは挿入不可能です。実際の使用では注意が必要です。
-                                            </p>
+                                {/* 新規デバイス追加フォーム */}
+                                {showAddForm && (
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h4 className="font-medium text-blue-800">新しいデバイスを追加</h4>
+                                            <button
+                                                onClick={() => setShowAddForm(false)}
+                                                className="text-blue-600 hover:text-blue-800"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="space-y-3">
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">判断円</label>
+                                                    <select
+                                                        value={newDeviceForm.判断円}
+                                                        onChange={(e) => setNewDeviceForm(prev => ({ ...prev, 判断円: e.target.value }))}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                                    >
+                                                        <option value="親円">親円</option>
+                                                        <option value="子円">子円</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">タイプ *</label>
+                                                    <input
+                                                        type="text"
+                                                        value={newDeviceForm.タイプ}
+                                                        onChange={(e) => setNewDeviceForm(prev => ({ ...prev, タイプ: e.target.value }))}
+                                                        placeholder="バルーン〔SC〕"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                                    />
+                                                </div>
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">名称 *</label>
+                                                <input
+                                                    type="text"
+                                                    value={newDeviceForm.名称}
+                                                    onChange={(e) => setNewDeviceForm(prev => ({ ...prev, 名称: e.target.value }))}
+                                                    placeholder="Ryurei【2.50-3.50mm】"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">最大外径(mm) *</label>
+                                                    <input
+                                                        type="number"
+                                                        step="0.001"
+                                                        value={newDeviceForm.最大外径}
+                                                        onChange={(e) => setNewDeviceForm(prev => ({ ...prev, 最大外径: e.target.value }))}
+                                                        placeholder="0.87"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                                    />
+                                                </div>
+                                                {newDeviceForm.判断円 === '子円' && (
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-1">シャフト径(mm)</label>
+                                                        <input
+                                                            type="number"
+                                                            step="0.001"
+                                                            value={newDeviceForm.シャフト径}
+                                                            onChange={(e) => setNewDeviceForm(prev => ({ ...prev, シャフト径: e.target.value }))}
+                                                            placeholder="0.64"
+                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">備考</label>
+                                                <input
+                                                    type="text"
+                                                    value={newDeviceForm.備考}
+                                                    onChange={(e) => setNewDeviceForm(prev => ({ ...prev, 備考: e.target.value }))}
+                                                    placeholder="適応GC :6Fr"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                                />
+                                            </div>
+
+                                            <div className="flex space-x-2 pt-2">
+                                                <button
+                                                    onClick={addNewDevice}
+                                                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition-colors text-sm"
+                                                >
+                                                    追加
+                                                </button>
+                                                <button
+                                                    onClick={() => setShowAddForm(false)}
+                                                    className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-lg font-medium transition-colors text-sm"
+                                                >
+                                                    キャンセル
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
+                                )}
 
-                                    {/* データリスト */}
-                                    <div className="max-h-96 overflow-y-auto space-y-2">
-                                        {filteredDatabase.map((item, index) => {
-                                            // 問題のあるデータかチェック
-                                            const isProblematic = (
-                                                (item.名称.includes('EZ Guide') && item.名称.includes('5.5Fr') && item.最大外径 === 1.3) ||
-                                                (item.名称.includes('ThrombusterⅡ 6Fr') && item.最大外径 === 1.3)
-                                            );
-                                            
-                                            return (
-                                                <div key={index} className={`border rounded-lg p-3 ${
-                                                    isProblematic ? 'border-red-300 bg-red-50' : 'border-gray-200'
-                                                }`}>
+                                {/* データリスト */}
+                                <div className="space-y-2">
+                                    {filteredDatabase.map((item, originalIndex) => {
+                                        const actualIndex = database.findIndex(dbItem => 
+                                            dbItem.名称 === item.名称 && 
+                                            dbItem.タイプ === item.タイプ && 
+                                            dbItem.最大外径 === item.最大外径
+                                        );
+                                        
+                                        const isEditing = editingIndex === actualIndex;
+                                        
+                                        return (
+                                            <div key={`${actualIndex}-${item.名称}`} className={`border rounded-lg p-3 ${isEditing ? 'ring-2 ring-blue-500 border-blue-300' : 'border-gray-200 hover:border-gray-300'} transition-all`}>
+                                                {isEditing ? (
+                                                    /* 編集フォーム */
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <h4 className="font-medium text-blue-800 text-sm">データを編集</h4>
+                                                            <button
+                                                                onClick={cancelEdit}
+                                                                className="text-gray-600 hover:text-gray-800 text-sm"
+                                                            >
+                                                                ✕
+                                                            </button>
+                                                        </div>
+                                                        
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <div>
+                                                                <label className="block text-xs font-medium text-gray-700 mb-1">判断円</label>
+                                                                <select
+                                                                    value={editForm.判断円}
+                                                                    onChange={(e) => setEditForm(prev => ({ ...prev, 判断円: e.target.value }))}
+                                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                                                >
+                                                                    <option value="親円">親円</option>
+                                                                    <option value="子円">子円</option>
+                                                                </select>
+                                                            </div>
+                                                            <div>
+                                                                <label className="block text-xs font-medium text-gray-700 mb-1">タイプ *</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={editForm.タイプ}
+                                                                    onChange={(e) => setEditForm(prev => ({ ...prev, タイプ: e.target.value }))}
+                                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div>
+                                                            <label className="block text-xs font-medium text-gray-700 mb-1">名称 *</label>
+                                                            <input
+                                                                type="text"
+                                                                value={editForm.名称}
+                                                                onChange={(e) => setEditForm(prev => ({ ...prev, 名称: e.target.value }))}
+                                                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                                            />
+                                                        </div>
+                                                        
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <div>
+                                                                <label className="block text-xs font-medium text-gray-700 mb-1">最大外径(mm) *</label>
+                                                                <input
+                                                                    type="number"
+                                                                    step="0.001"
+                                                                    value={editForm.最大外径}
+                                                                    onChange={(e) => setEditForm(prev => ({ ...prev, 最大外径: e.target.value }))}
+                                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                                                />
+                                                            </div>
+                                                            {editForm.判断円 === '子円' && (
+                                                                <div>
+                                                                    <label className="block text-xs font-medium text-gray-700 mb-1">シャフト径(mm)</label>
+                                                                    <input
+                                                                        type="number"
+                                                                        step="0.001"
+                                                                        value={editForm.シャフト径}
+                                                                        onChange={(e) => setEditForm(prev => ({ ...prev, シャフト径: e.target.value }))}
+                                                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        
+                                                        <div>
+                                                            <label className="block text-xs font-medium text-gray-700 mb-1">備考</label>
+                                                            <input
+                                                                type="text"
+                                                                value={editForm.備考}
+                                                                onChange={(e) => setEditForm(prev => ({ ...prev, 備考: e.target.value }))}
+                                                                className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
+                                                            />
+                                                        </div>
+                                                        
+                                                        <div className="flex space-x-2 pt-2">
+                                                            <button
+                                                                onClick={() => saveEdit(actualIndex)}
+                                                                className="flex-1 bg-green-500 hover:bg-green-600 text-white py-1 px-3 rounded font-medium transition-colors text-xs"
+                                                            >
+                                                                保存
+                                                            </button>
+                                                            <button
+                                                                onClick={cancelEdit}
+                                                                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-1 px-3 rounded font-medium transition-colors text-xs"
+                                                            >
+                                                                キャンセル
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    /* 通常表示 */
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex-1">
-                                                            <div className="flex items-center space-x-2">
+                                                            <div className="flex items-center space-x-2 mb-1">
                                                                 <span className={`w-2 h-2 rounded-full ${
                                                                     item.判断円 === '親円' ? 'bg-blue-500' : 'bg-green-500'
                                                                 }`}></span>
                                                                 <span className="font-medium text-sm">{item.名称}</span>
-                                                                {isProblematic && (
-                                                                    <span className="text-xs bg-red-200 text-red-800 px-2 py-1 rounded">⚠️</span>
+                                                            </div>
+                                                            <div className="text-xs text-gray-600 space-y-0.5">
+                                                                <p><span className="font-medium">タイプ:</span> {item.タイプ}</p>
+                                                                <p>
+                                                                    <span className="font-medium">最大外径:</span> {item.最大外径}mm
+                                                                    {item.シャフト径 && <span className="ml-2"><span className="font-medium">シャフト径:</span> {item.シャフト径}mm</span>}
+                                                                </p>
+                                                                {item.備考 && (
+                                                                    <p className="text-yellow-700 bg-yellow-100 p-1 rounded">
+                                                                        <span className="font-medium">備考:</span> {item.備考}
+                                                                    </p>
                                                                 )}
                                                             </div>
-                                                            <p className="text-xs text-gray-600">{item.タイプ}</p>
-                                                            <p className="text-xs text-gray-500">
-                                                                最大外径: {item.最大外径}mm
-                                                                {item.シャフト径 && ` | シャフト径: ${item.シャフト径}mm`}
-                                                            </p>
-                                                            {item.備考 && (
-                                                                <p className="text-xs text-yellow-700 bg-yellow-100 p-1 rounded mt-1">
-                                                                    💡 {item.備考.substring(0, 50)}...
-                                                                </p>
-                                                            )}
-                                                            {isProblematic && (
-                                                                <p className="text-xs text-red-600 bg-red-100 p-1 rounded mt-1">
-                                                                    🚨 同径データ - 挿入不可の可能性
-                                                                </p>
-                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center space-x-1 ml-2">
+                                                            <button
+                                                                onClick={() => startEdit(actualIndex, item)}
+                                                                className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded text-xs font-bold"
+                                                                title="編集"
+                                                            >
+                                                                ✏️
+                                                            </button>
+                                                            <button
+                                                                onClick={() => deleteDevice(actualIndex, item)}
+                                                                className="bg-red-500 hover:bg-red-600 text-white p-1.5 rounded text-xs font-bold"
+                                                                title="削除"
+                                                            >
+                                                                🗑️
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    {filteredDatabase.length === 0 && searchTerm && (
-                                        <div className="text-center py-8">
-                                            <div className="text-2xl mb-2">🔍</div>
-                                            <p className="text-gray-500 text-sm">検索結果が見つかりません</p>
-                                        </div>
-                                    )}
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
 
-                                {/* 統計情報 */}
-                                <div className="bg-white rounded-xl p-6 shadow-sm">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">データ統計</h3>
-                                    <div className="grid grid-cols-2 gap-4 mb-4">
-                                        <div className="text-center p-3 bg-blue-50 rounded-lg">
-                                            <div className="text-2xl font-bold text-blue-600">{parentCircles.length}</div>
-                                            <div className="text-sm text-blue-600">親円</div>
-                                        </div>
-                                        <div className="text-center p-3 bg-green-50 rounded-lg">
-                                            <div className="text-2xl font-bold text-green-600">{childCirclesData.length}</div>
-                                            <div className="text-sm text-green-600">子円</div>
-                                        </div>
+                                {filteredDatabase.length === 0 && searchTerm && (
+                                    <div className="text-center py-8">
+                                        <div className="text-2xl mb-2">🔍</div>
+                                        <p className="text-gray-500 text-sm">検索結果が見つかりません</p>
                                     </div>
-                                    
-                                    {/* 問題データの統計 */}
-                                    <div className="bg-red-50 rounded-lg p-3 mb-4">
-                                        <h4 className="font-medium text-red-800 mb-2">問題のあるデータ</h4>
-                                        <div className="text-sm text-red-700">
-                                            <p>• 同径データ: 2件</p>
-                                            <p>• クリアランス0mm: EZ Guide 5.5Fr系</p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="mt-4">
-                                        <h4 className="font-medium text-gray-700 mb-2">タイプ別統計</h4>
-                                        <div className="space-y-1 text-sm">
-                                            {uniqueTypes.slice(0, 5).map(type => {
-                                                const count = childCirclesData.filter(c => c.タイプ === type).length;
-                                                return (
-                                                    <div key={type} className="flex justify-between">
-                                                        <span className="text-gray-600">{type}</span>
-                                                        <span className="font-medium">{count}件</span>
-                                                    </div>
-                                                );
-                                            })}
-                                            {uniqueTypes.length > 5 && (
-                                                <div className="text-xs text-gray-500 text-center pt-2">
-                                                    他 {uniqueTypes.length - 5} タイプ
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* 解決提案 */}
-                                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-yellow-800 mb-4">💡 解決提案</h3>
-                                    <div className="space-y-3 text-sm text-yellow-800">
-                                        <div className="flex items-start space-x-3">
-                                            <span className="text-lg">1️⃣</span>
-                                            <div>
-                                                <p className="font-medium">データ精度の向上</p>
-                                                <p>小数点第2位まで測定し、真の値を記録</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-start space-x-3">
-                                            <span className="text-lg">2️⃣</span>
-                                            <div>
-                                                <p className="font-medium">測定条件の明記</p>
-                                                <p>デフレート時、インフレート時など状態を明記</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-start space-x-3">
-                                            <span className="text-lg">3️⃣</span>
-                                            <div>
-                                                <p className="font-medium">安全マージンの設定</p>
-                                                <p>最小0.1mmのクリアランスを確保</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-start space-x-3">
-                                            <span className="text-lg">4️⃣</span>
-                                            <div>
-                                                <p className="font-medium">メーカー仕様書の確認</p>
-                                                <p>公式の技術仕様書で数値を再確認</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                )}
                             </div>
                         )}
                     </main>
@@ -1174,4 +1048,3 @@
         ReactDOM.render(<CircleCheckerPro />, document.getElementById('root'));
     </script>
 </body>
-</html>
