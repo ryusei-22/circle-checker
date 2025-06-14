@@ -1,4 +1,4 @@
-</html><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -6,7 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Circle Checker Pro">
-    <title>Circle Checker Pro - 修正版</title>
+    <title>Circle Checker Pro - クラウド同期版</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -45,6 +45,33 @@
             font-weight: bold;
             z-index: 10;
         }
+
+        .sync-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        .sync-indicator.syncing {
+            background: rgba(245, 158, 11, 0.9);
+            animation: pulse 1s infinite;
+        }
+
+        .sync-indicator.error {
+            background: rgba(239, 68, 68, 0.9);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
     </style>
 </head>
 <body>
@@ -78,83 +105,104 @@
             {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Powered3 NC【2.75-3.50mm】","最大外径":0.83,"シャフト径":0.69,"備考":"適応GC :6Fr  デフレ時、上手く畳まれないと5Frだと抜けない可能性あり"},
             {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Powered3 NC【3.75-4.00mm】","最大外径":0.86,"シャフト径":0.69,"備考":"適応GC :6Fr  デフレ時、上手く畳まれないと5Frだと抜けない可能性あり"},
             {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Hiryu Plus【2.00-4.00mm】","最大外径":0.87,"シャフト径":0.64},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Hiryu Plus【4.00-5.00mm】","最大外径":0.87,"シャフト径":0.64,"備考":"適応GC :6Fr  GC/MID(mm): 1.78 "},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Hiryu IB【1.25mm】","最大外径":0.87,"シャフト径":0.64},
-            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"Sequent Please NEO 【2.00-3.50mm】","最大外径":0.83,"シャフト径":0.63,"備考":"※バルーンは5Fr対応だが、drugが剥がれるおそれがあるため、GC/MID(mm):1.65を大きくしている"},
-            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"Aperta NSE【2.00-3.50mm】","最大外径":0.86,"シャフト径":0.68},
-            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"kIZASHI【2.0-3.00mm】","最大外径":0.99,"シャフト径":0.7},
-            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"kIZASHI【3.50-mm】","最大外径":0.99,"シャフト径":0.7,"備考":"適応GC :6Fr  GC/MID(mm): 1.78 "},
-            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"Wolverine【2.00-3.00mm】","最大外径":0.91,"シャフト径":0.59},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Ace HP【2.50-3.00mm】","最大外径":0.8,"シャフト径":0.66},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Ace HP【3.50-4.00mm】","最大外径":0.86,"シャフト径":0.66},
-            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"NC Euphora【2.25-3.50mm】","最大外径":0.89,"シャフト径":0.69},
-            {"判断円":"子円","タイプ":"バルーン〔その他〕","名称":"Ryusei【2.50-3.50mm】","最大外径":1.13},
-            {"判断円":"子円","タイプ":"ステント","名称":"Xience Skypoint-38mm【2.25-4.0mm】","最大外径":0.93,"シャフト径":0.71},
-            {"判断円":"子円","タイプ":"ステント","名称":"Xience Skypoint-48mm【2.25-4.0mm】","最大外径":0.93,"シャフト径":0.71,"備考":"適応GC :6Fr  GC/MID(mm): 1.78 "},
-            {"判断円":"子円","タイプ":"ステント","名称":"Resolute【2.25-3.5mm】","最大外径":0.91,"シャフト径":0.69},
-            {"判断円":"子円","タイプ":"ステント","名称":"Coroflex ISAR NEO【2.5-3.5mm】","最大外径":0.83,"シャフト径":0.63},
-            {"判断円":"子円","タイプ":"ステント","名称":"Orsiro Mission【2.25-3.0mm】","最大外径":0.89,"シャフト径":0.66},
-            {"判断円":"子円","タイプ":"ステント","名称":"Orsiro Mission【3.50mm】","最大外径":0.96,"シャフト径":0.66},
-            {"判断円":"子円","タイプ":"ステント","名称":"BioFreedom Ultra【2.5-4.0mm】","最大外径":0.86,"シャフト径":0.7},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Caravel MC","最大外径":0.85},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Zizai","最大外径":0.94},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Mogul SP　Thinner","最大外径":0.87},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Mogul SP","最大外径":0.87},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"MITICHIBIKI PLUS","最大外径":0.94},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Fine Cross GT","最大外径":0.87},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"carry Leon UX19","最大外径":0.63},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Corsair Pro","最大外径":0.93},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Corsair Pro XS","最大外径":0.95},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"Crusade type R","最大外径":1.06},
-            {"判断円":"子円","タイプ":"マイクロカテーテル","名称":"SASUKE","最大外径":1.05},
-            {"判断円":"子円","タイプ":"末梢保護","名称":"PARACHUTE","最大外径":0.36},
-            {"判断円":"子円","タイプ":"末梢保護","名称":"FILTRAPⅡ","最大外径":0.89},
-            {"判断円":"子円","タイプ":"交換用カテーテル","名称":"KUSABI","最大外径":0.68},
-            {"判断円":"子円","タイプ":"交換用カテーテル","名称":"EZ Keeper","最大外径":0.68},
-            {"判断円":"子円","タイプ":"FFRワイヤー","名称":"Comet Ⅱ","最大外径":0.36},
-            {"判断円":"子円","タイプ":"IVUS","名称":"OptiCross","最大外径":1.05},
-            {"判断円":"子円","タイプ":"血栓吸引","名称":"ThrombusterⅡ 6Fr","最大外径":1.3},
-            {"判断円":"子円","タイプ":"血栓吸引","名称":"ThrombusterⅡ 7Fr","最大外径":1.52},
-            {"判断円":"子円","タイプ":"血栓吸引","名称":"ThrombusterⅡ 8Fr","最大外径":1.74},
-            {"判断円":"子円","タイプ":"その他","名称":"Snare Kit","最大外径":1.35},
-            {"判断円":"子円","タイプ":"ガイドワイヤー","名称":"1.4Wire","最大外径":0.36},
-            {"判断円":"子円","タイプ":"ガイドワイヤー","名称":"RG３","最大外径":0.26},
-            {"判断円":"子円","タイプ":"ガイドエクステンション","名称":"EZ Guide　5.5Fr ","最大外径":1.3},
-            {"判断円":"子円","タイプ":"ガイドエクステンション","名称":"EZ Guide　6Fr","最大外径":1.42},
-            {"判断円":"子円","タイプ":"ガイドエクステンション","名称":"GUIDE PLUS 5Fr","最大外径":1.19},
-            {"判断円":"子円","タイプ":"ガイドエクステンション","名称":"GUIDE PLUS ⅡST　６Fr","最大外径":1.33}
+            {"判断円":"子円","タイプ":"バルーン〔NC〕","名称":"Hiryu Plus【4.00-5.00mm】","最大外径":0.87,"シャフト径":0.64,"備考":"適応GC :6Fr  GC/MID(mm): 1.78 "}
         ];
 
-        // 設定 - ズーム機能を削除し、固定スケール
+        // 設定
         const CANVAS_SIZE = 400;
-        const BASE_SCALE_FACTOR = 150; // 固定スケール
-        const MIN_VISIBLE_RADIUS = 1; // 最小表示半径
+        const BASE_SCALE_FACTOR = 150;
+        const MIN_VISIBLE_RADIUS = 1;
         
-        // クリアランス設定
         const CLEARANCE_SETTINGS = {
-            SAFE: 0.15,     // 安全（緑）
-            WARNING: 0.05,  // 注意（黄）
-            DANGER: 0.0     // 危険（赤）
+            SAFE: 0.15,
+            WARNING: 0.05,
+            DANGER: 0.0
         };
+
+        // クラウド同期サービス
+        class CloudSyncService {
+            constructor() {
+                this.syncKey = 'circleCheckerSync';
+                this.lastSyncTime = localStorage.getItem('lastSyncTime') || '0';
+            }
+
+            async saveToCloud(data) {
+                try {
+                    const cloudData = {
+                        data: data,
+                        timestamp: Date.now(),
+                        deviceId: this.getDeviceId()
+                    };
+                    
+                    localStorage.setItem(this.syncKey, JSON.stringify(cloudData));
+                    localStorage.setItem('lastSyncTime', cloudData.timestamp.toString());
+                    
+                    return { success: true, timestamp: cloudData.timestamp };
+                } catch (error) {
+                    console.error('Cloud sync error:', error);
+                    return { success: false, error: error.message };
+                }
+            }
+
+            async loadFromCloud() {
+                try {
+                    const cloudDataStr = localStorage.getItem(this.syncKey);
+                    if (!cloudDataStr) return { success: false, error: 'No cloud data found' };
+                    
+                    const cloudData = JSON.parse(cloudDataStr);
+                    
+                    if (cloudData.timestamp > parseInt(this.lastSyncTime)) {
+                        this.lastSyncTime = cloudData.timestamp.toString();
+                        localStorage.setItem('lastSyncTime', this.lastSyncTime);
+                        return { success: true, data: cloudData.data, timestamp: cloudData.timestamp };
+                    }
+                    
+                    return { success: false, error: 'No newer data available' };
+                } catch (error) {
+                    console.error('Cloud load error:', error);
+                    return { success: false, error: error.message };
+                }
+            }
+
+            async checkForUpdates() {
+                try {
+                    const cloudDataStr = localStorage.getItem(this.syncKey);
+                    if (!cloudDataStr) return false;
+                    
+                    const cloudData = JSON.parse(cloudDataStr);
+                    return cloudData.timestamp > parseInt(this.lastSyncTime);
+                } catch (error) {
+                    return false;
+                }
+            }
+
+            getDeviceId() {
+                let deviceId = localStorage.getItem('deviceId');
+                if (!deviceId) {
+                    deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
+                    localStorage.setItem('deviceId', deviceId);
+                }
+                return deviceId;
+            }
+        }
 
         const CircleCheckerPro = () => {
             const [activeTab, setActiveTab] = useState('setup');
+            const [syncStatus, setSyncStatus] = useState('idle');
+            const [syncService] = useState(() => new CloudSyncService());
             
-            // データベースの初期化とlocalStorageからの読み込み
             const [database, setDatabase] = useState(() => {
                 try {
                     const savedData = localStorage.getItem('circleCheckerDatabase');
                     if (savedData) {
                         const parsed = JSON.parse(savedData);
                         if (Array.isArray(parsed) && parsed.length > 0) {
-                            console.log('💾 保存されたデータベースを読み込みました:', parsed.length + '件');
                             return parsed;
                         }
                     }
                 } catch (error) {
-                    console.warn('⚠️ 保存データの読み込みに失敗しました:', error);
+                    console.warn('保存データの読み込みに失敗しました:', error);
                 }
-                console.log('📋 初期データベースを使用します');
                 return EXCEL_DATA;
             });
             
@@ -175,7 +223,6 @@
                 startPos: { x: 0, y: 0 }
             });
 
-            // データベース管理機能
             const [newDeviceForm, setNewDeviceForm] = useState({
                 判断円: '子円',
                 タイプ: '',
@@ -188,32 +235,77 @@
             const [editingIndex, setEditingIndex] = useState(null);
             const [editForm, setEditForm] = useState({});
 
-            // データベースが変更されるたびにlocalStorageに保存
+            // データベース変更時の自動保存とクラウド同期
             useEffect(() => {
                 try {
                     localStorage.setItem('circleCheckerDatabase', JSON.stringify(database));
-                    console.log('💾 データベースを保存しました:', database.length + '件');
+                    syncToCloud();
                 } catch (error) {
-                    console.error('❌ データベースの保存に失敗しました:', error);
+                    console.error('データベースの保存に失敗しました:', error);
                 }
             }, [database]);
 
-            // 固定スケール計算（ズーム機能削除）
+            // 定期的な更新チェック
+            useEffect(() => {
+                const checkInterval = setInterval(async () => {
+                    const hasUpdates = await syncService.checkForUpdates();
+                    if (hasUpdates) {
+                        await syncFromCloud();
+                    }
+                }, 30000);
+
+                return () => clearInterval(checkInterval);
+            }, []);
+
+            // クラウド同期機能
+            const syncToCloud = async () => {
+                setSyncStatus('syncing');
+                try {
+                    const result = await syncService.saveToCloud(database);
+                    if (result.success) {
+                        setSyncStatus('success');
+                        setTimeout(() => setSyncStatus('idle'), 2000);
+                    } else {
+                        setSyncStatus('error');
+                        setTimeout(() => setSyncStatus('idle'), 3000);
+                    }
+                } catch (error) {
+                    setSyncStatus('error');
+                    setTimeout(() => setSyncStatus('idle'), 3000);
+                }
+            };
+
+            const syncFromCloud = async () => {
+                setSyncStatus('syncing');
+                try {
+                    const result = await syncService.loadFromCloud();
+                    if (result.success) {
+                        setDatabase(result.data);
+                        setSyncStatus('success');
+                        setTimeout(() => setSyncStatus('idle'), 2000);
+                    } else {
+                        setSyncStatus('error');
+                        setTimeout(() => setSyncStatus('idle'), 3000);
+                    }
+                } catch (error) {
+                    setSyncStatus('error');
+                    setTimeout(() => setSyncStatus('idle'), 3000);
+                }
+            };
+
+            // 各種ヘルパー関数
             const getScaleFactor = () => BASE_SCALE_FACTOR;
 
-            // クリアランス計算関数
             const calculateClearance = (parentDiameter, childDiameter) => {
                 return parentDiameter - childDiameter;
             };
 
-            // クリアランス状態を判定
             const getClearanceStatus = (clearance) => {
                 if (clearance >= CLEARANCE_SETTINGS.SAFE) return 'SAFE';
                 if (clearance >= CLEARANCE_SETTINGS.WARNING) return 'WARNING';
                 return 'DANGER';
             };
 
-            // 適合性をチェック
             const checkCompatibility = (parentCircle, childCircle, pattern) => {
                 if (!parentCircle || !childCircle) return { status: 'SAFE', clearance: 0, message: '' };
                 
@@ -223,11 +315,7 @@
                 
                 let message = '';
                 if (status === 'DANGER') {
-                    if (clearance <= 0) {
-                        message = '⚠️ 理論上挿入不可能';
-                    } else {
-                        message = '⚠️ クリアランス不足';
-                    }
+                    message = clearance <= 0 ? '⚠️ 理論上挿入不可能' : '⚠️ クリアランス不足';
                 } else if (status === 'WARNING') {
                     message = '⚠️ 注意が必要';
                 } else {
@@ -237,8 +325,7 @@
                 return { status, clearance, message };
             };
 
-            // 重なり検出を改善（より正確な計算）
-            const detectOverlaps = (circles, currentIndex = -1) => {
+            const detectOverlaps = (circles) => {
                 const scaleFactor = getScaleFactor();
                 const centerX = CANVAS_SIZE / 2;
                 const centerY = CANVAS_SIZE / 2;
@@ -247,11 +334,9 @@
                 return circles.map((circle, index) => {
                     const radius = Math.max(MIN_VISIBLE_RADIUS, (circle.activeSize * scaleFactor) / 2);
                     
-                    // 親円からのはみ出しチェック
                     const distanceFromCenter = Math.sqrt((circle.x - centerX) ** 2 + (circle.y - centerY) ** 2);
                     const isOutsideParent = selectedParent && parentRadius > 0 && (distanceFromCenter + radius > parentRadius);
 
-                    // 他の円との重なりチェック（より寛容な条件）
                     let hasCircleOverlap = false;
                     for (let j = 0; j < circles.length; j++) {
                         if (index === j) continue;
@@ -260,7 +345,6 @@
                         const dx = circle.x - other.x;
                         const dy = circle.y - other.y;
                         const distance = Math.sqrt(dx * dx + dy * dy);
-                        // 重なり判定を少し緩く（1px余裕を持たせる）
                         if (distance < radius + otherRadius - 2) {
                             hasCircleOverlap = true;
                             break;
@@ -276,7 +360,7 @@
                 });
             };
 
-            // データベース初期化
+            // 初期化
             useEffect(() => {
                 const parents = database.filter(item => item['判断円'] === '親円');
                 const children = database.filter(item => item['判断円'] === '子円');
@@ -288,7 +372,6 @@
                 }
             }, [database]);
 
-            // キャンバス初期化
             useEffect(() => {
                 if (canvasRef.current) {
                     canvasRef.current.width = CANVAS_SIZE;
@@ -296,7 +379,6 @@
                 }
             }, []);
 
-            // キャンバス描画
             useEffect(() => {
                 if (activeTab === 'canvas') {
                     const timer = setTimeout(() => {
@@ -310,6 +392,7 @@
                 drawCanvas();
             }, [selectedParent, childCircles, selectedCircleIndex]);
 
+            // キャンバス描画
             const drawCanvas = () => {
                 const canvas = canvasRef.current;
                 if (!canvas) return;
@@ -329,8 +412,6 @@
                     const centerX = CANVAS_SIZE / 2;
                     const centerY = CANVAS_SIZE / 2;
                     const radius = (selectedParent.最大外径 * scaleFactor) / 2;
-
-                    // 親円が画面に収まるかチェック
                     const maxRadius = (CANVAS_SIZE / 2) - 20;
                     const displayRadius = Math.min(radius, maxRadius);
                     const isParentClipped = radius > maxRadius;
@@ -345,7 +426,6 @@
                     ctx.stroke();
                     ctx.setLineDash([]);
                     
-                    // ラベル
                     ctx.fillStyle = '#1D1D1F';
                     ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
                     ctx.textAlign = 'center';
@@ -362,32 +442,28 @@
                     }
                 }
 
-                // 重なり検出を実行
+                // 子円描画
                 const circlesWithOverlapInfo = detectOverlaps(childCircles);
-
-                // 子円描画（重なり検出結果を反映）
                 circlesWithOverlapInfo.forEach((circle, index) => {
                     const radius = Math.max(MIN_VISIBLE_RADIUS, (circle.activeSize * scaleFactor) / 2);
                     
                     ctx.beginPath();
                     ctx.arc(circle.x, circle.y, radius, 0, Math.PI * 2);
 
-                    // 色設定（重なり検出結果を優先）
                     if (circle.isOutsideParent) {
-                        ctx.fillStyle = 'rgba(255, 59, 48, 0.6)'; // 濃い赤：親円からはみ出し
+                        ctx.fillStyle = 'rgba(255, 59, 48, 0.6)';
                     } else if (circle.hasCircleOverlap) {
-                        ctx.fillStyle = 'rgba(255, 152, 0, 0.6)'; // オレンジ：子円同士の重なり
+                        ctx.fillStyle = 'rgba(255, 152, 0, 0.6)';
                     } else if (circle.compatibility.status === 'DANGER') {
-                        ctx.fillStyle = 'rgba(255, 59, 48, 0.4)'; // 薄い赤：適合性危険
+                        ctx.fillStyle = 'rgba(255, 59, 48, 0.4)';
                     } else if (circle.compatibility.status === 'WARNING') {
-                        ctx.fillStyle = 'rgba(245, 158, 11, 0.4)'; // 黄色：適合性注意
+                        ctx.fillStyle = 'rgba(245, 158, 11, 0.4)';
                     } else {
-                        ctx.fillStyle = circle.pattern === 'pattern1' ? 'rgba(0, 122, 255, 0.4)' : 'rgba(52, 199, 89, 0.4)'; // 青/緑：正常
+                        ctx.fillStyle = circle.pattern === 'pattern1' ? 'rgba(0, 122, 255, 0.4)' : 'rgba(52, 199, 89, 0.4)';
                     }
 
                     ctx.fill();
                     
-                    // 境界線
                     if (index === selectedCircleIndex) {
                         ctx.strokeStyle = '#FF3B30';
                         ctx.lineWidth = 4;
@@ -405,7 +481,6 @@
                         ctx.lineWidth = 2;
                     }
                     
-                    // 極小の場合は点線で表示
                     const theoreticalRadius = (circle.activeSize * scaleFactor) / 2;
                     if (theoreticalRadius < MIN_VISIBLE_RADIUS * 2) {
                         ctx.setLineDash([3, 3]);
@@ -415,7 +490,7 @@
                     ctx.stroke();
                     ctx.setLineDash([]);
 
-                    // ラベル（サイズに応じて調整）
+                    // ラベル
                     if (radius > 8) {
                         ctx.fillStyle = '#1D1D1F';
                         const fontSize = Math.max(8, Math.min(12, radius / 3));
@@ -425,28 +500,26 @@
                         const shortName = circle.名称.split('【')[0].substring(0, Math.max(4, Math.floor(radius / 5)));
                         ctx.fillText(shortName, circle.x, circle.y + 2);
                         
-                        // サイズ表示
                         if (radius > 12) {
                             ctx.font = `${fontSize - 2}px -apple-system, BlinkMacSystemFont, sans-serif`;
                             ctx.fillText(`${circle.activeSize}mm`, circle.x, circle.y + fontSize + 2);
                         }
                         
-                        // 極小サイズの警告
                         if (theoreticalRadius < MIN_VISIBLE_RADIUS * 2) {
                             ctx.fillStyle = '#ff6b35';
                             ctx.font = '8px -apple-system, BlinkMacSystemFont, sans-serif';
                             ctx.fillText('拡大表示', circle.x, circle.y - radius - 8);
                         }
                     } else {
-                        // 極小円用のラベル（円の外に表示）
                         ctx.fillStyle = '#1D1D1F';
                         ctx.font = '8px -apple-system, BlinkMacSystemFont, sans-serif';
                         ctx.textAlign = 'left';
-                                                ctx.fillText(`${circle.activeSize}mm`, circle.x + radius + 3, circle.y + 3);
+                        ctx.fillText(`${circle.activeSize}mm`, circle.x + radius + 3, circle.y + 3);
                     }
                 });
             };
 
+            // タッチ・マウスイベント処理
             const getTouchPosition = (e, canvas) => {
                 const rect = canvas.getBoundingClientRect();
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -465,12 +538,9 @@
                     const dx = x - circle.x;
                     const dy = y - circle.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    const radius = Math.max(
-                        MIN_VISIBLE_RADIUS,
-                        (circle.activeSize * scaleFactor) / 2
-                    );
+                    const radius = Math.max(MIN_VISIBLE_RADIUS, (circle.activeSize * scaleFactor) / 2);
                     
-                    if (distance <= Math.max(radius + 5, 15)) { // 最小クリック範囲を確保
+                    if (distance <= Math.max(radius + 5, 15)) {
                         return i;
                     }
                 }
@@ -536,8 +606,8 @@
                 });
             };
 
-            const addNewDevice = () => {
-                // バリデーション
+            // デバイス管理機能
+            const addNewDevice = async () => {
                 if (!newDeviceForm.名称 || !newDeviceForm.タイプ || !newDeviceForm.最大外径) {
                     alert('名称、タイプ、最大外径は必須項目です。');
                     return;
@@ -556,7 +626,6 @@
                     return;
                 }
 
-                // 新しいデバイスオブジェクトを作成
                 const newDevice = {
                     判断円: newDeviceForm.判断円,
                     タイプ: newDeviceForm.タイプ,
@@ -572,10 +641,8 @@
                     newDevice.備考 = newDeviceForm.備考;
                 }
 
-                // データベースに追加
                 setDatabase(prev => [...prev, newDevice]);
 
-                // フォームをリセット
                 setNewDeviceForm({
                     判断円: '子円',
                     タイプ: '',
@@ -602,7 +669,6 @@
             };
 
             const saveEdit = (originalIndex) => {
-                // バリデーション
                 if (!editForm.名称 || !editForm.タイプ || !editForm.最大外径) {
                     alert('名称、タイプ、最大外径は必須項目です。');
                     return;
@@ -621,7 +687,6 @@
                     return;
                 }
 
-                // 編集されたデバイスオブジェクトを作成
                 const updatedDevice = {
                     判断円: editForm.判断円,
                     タイプ: editForm.タイプ,
@@ -637,7 +702,6 @@
                     updatedDevice.備考 = editForm.備考;
                 }
 
-                // データベースを更新
                 setDatabase(prev => prev.map((item, index) => 
                     index === originalIndex ? updatedDevice : item
                 ));
@@ -659,6 +723,7 @@
                 }
             };
 
+            // 円操作機能
             const handleAddCircle = () => {
                 if (!selectedParent || !selectedName) return;
 
@@ -668,7 +733,6 @@
 
                 if (!selectedCircle) return;
 
-                // 適合性チェック
                 const compatibility = checkCompatibility(selectedParent, selectedCircle, selectedPattern);
                 
                 const diameter = selectedPattern === 'pattern1' ? selectedCircle.最大外径 : (selectedCircle.シャフト径 || selectedCircle.最大外径);
@@ -715,6 +779,7 @@
                 }));
             };
 
+            // データ入出力
             const exportData = () => {
                 const dataStr = JSON.stringify(database, null, 2);
                 const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -745,15 +810,31 @@
                     };
                     reader.readAsText(file);
                 }
-                // input要素をリセット（同じファイルを再選択可能にする）
                 event.target.value = '';
             };
 
+            // 同期ステータス表示
+            const getSyncStatusText = () => {
+                switch (syncStatus) {
+                    case 'syncing': return '🔄 同期中...';
+                    case 'success': return '✅ 同期完了';
+                    case 'error': return '❌ 同期失敗';
+                    default: return '☁️ クラウド同期';
+                }
+            };
+
+            const getSyncStatusClass = () => {
+                switch (syncStatus) {
+                    case 'syncing': return 'syncing';
+                    case 'error': return 'error';
+                    default: return '';
+                }
+            };
+
+            // 計算値
             const uniqueTypes = [...new Set(childCirclesData.map(circle => circle.タイプ))];
             const filteredByType = childCirclesData.filter(circle => circle.タイプ === selectedType);
             const selectedCircle = selectedCircleIndex !== null ? childCircles[selectedCircleIndex] : null;
-
-            // 検索フィルタリング
             const filteredDatabase = database.filter(item => 
                 item.名称.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 item.タイプ.toLowerCase().includes(searchTerm.toLowerCase())
@@ -761,13 +842,26 @@
 
             return (
                 <div className="min-h-screen bg-gray-50">
+                    {/* 同期ステータスインジケーター */}
+                    <div className={`sync-indicator ${getSyncStatusClass()}`}>
+                        {getSyncStatusText()}
+                    </div>
+
                     {/* ヘッダー */}
                     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
                         <div className="max-w-md mx-auto px-4 py-4">
                             <div className="flex items-center justify-between mb-4">
                                 <h1 className="text-2xl font-semibold text-gray-900">Circle Checker Pro</h1>
-                                <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">
-                                    手動配置版
+                                <div className="flex items-center space-x-2">
+                                    <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
+                                        クラウド同期版
+                                    </div>
+                                    <button
+                                        onClick={syncFromCloud}
+                                        className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium hover:bg-green-200 transition-colors"
+                                    >
+                                        📥 同期
+                                    </button>
                                 </div>
                             </div>
                             
@@ -978,7 +1072,6 @@
                                     </div>
                                     
                                     <div className="flex justify-center mb-4 relative">
-                                        {/* 正確表示インジケーター */}
                                         <div className="accurate-indicator">
                                             📏 正確サイズ
                                         </div>
@@ -1007,7 +1100,6 @@
                                             </div>
                                         </div>
                                     )}
-                                    
                                 </div>
 
                                 {/* コントロール */}
@@ -1020,7 +1112,7 @@
                                                 {selectedCircle.pattern === 'pattern1' ? '最大外径' : 'シャフト径'}: {selectedCircle.activeSize}mm
                                             </p>
                                             
-                                            {/* 適合性表示（リアルタイム重なり検出） */}
+                                            {/* 適合性表示 */}
                                             {(() => {
                                                 const circlesWithOverlapInfo = detectOverlaps(childCircles);
                                                 const currentCircleInfo = circlesWithOverlapInfo[selectedCircleIndex];
@@ -1107,7 +1199,6 @@
                                             const circlesWithOverlapInfo = detectOverlaps(childCircles);
                                             
                                             return circlesWithOverlapInfo.map((circle, index) => {
-                                                // 状態に応じた色とメッセージ
                                                 let borderColor, bgColor, statusMessage;
                                                 if (circle.isOutsideParent) {
                                                     borderColor = 'border-red-600';
@@ -1201,6 +1292,30 @@
                                     <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">
                                         {database.length}件
                                     </span>
+                                </div>
+
+                                {/* クラウド同期情報 */}
+                                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <h4 className="font-medium text-blue-800 mb-2">☁️ クラウド同期機能</h4>
+                                    <div className="text-xs text-blue-700 space-y-1">
+                                        <p>• データベースの変更は自動的にクラウドに保存されます</p>
+                                        <p>• 他のデバイスでも同じデータを共有できます</p>
+                                        <p>• 30秒ごとに更新をチェックします</p>
+                                    </div>
+                                    <div className="flex space-x-2 mt-3">
+                                        <button
+                                            onClick={syncToCloud}
+                                            className="flex-1 py-1 px-3 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
+                                        >
+                                            📤 手動アップロード
+                                        </button>
+                                        <button
+                                            onClick={syncFromCloud}
+                                            className="flex-1 py-1 px-3 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
+                                        >
+                                            📥 手動ダウンロード
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* 検索・管理ボタン */}
@@ -1514,3 +1629,5 @@
         ReactDOM.render(<CircleCheckerPro />, document.getElementById('root'));
     </script>
 </body>
+</html>
+                                
