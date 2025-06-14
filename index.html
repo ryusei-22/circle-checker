@@ -414,8 +414,7 @@
                         ctx.fillStyle = '#1D1D1F';
                         ctx.font = '8px -apple-system, BlinkMacSystemFont, sans-serif';
                         ctx.textAlign = 'left';
-                        
-                        ctx.fillText(`${circle.activeSize}mm`, circle.x + radius + 3, circle.y + 3);
+                                                ctx.fillText(`${circle.activeSize}mm`, circle.x + radius + 3, circle.y + 3);
                     }
                 });
             };
@@ -793,6 +792,23 @@
                                                 ))}
                                             </select>
                                         </div>
+
+                                        {/* 選択された親円の詳細情報 */}
+                                        {selectedParent && (
+                                            <div className="bg-gray-50 rounded-lg p-4">
+                                                <h4 className="font-medium text-gray-900 mb-2">選択中の親円</h4>
+                                                <div className="text-sm text-gray-700 space-y-1">
+                                                    <p><strong>名称:</strong> {selectedParent.名称}</p>
+                                                    <p><strong>タイプ:</strong> {selectedParent.タイプ}</p>
+                                                    <p><strong>最大外径:</strong> {selectedParent.最大外径}mm</p>
+                                                    {selectedParent.備考 && (
+                                                        <p className="text-xs bg-yellow-100 text-yellow-800 p-2 rounded mt-2">
+                                                            💡 <strong>備考:</strong> {selectedParent.備考}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* タイプ選択 */}
                                         <div>
